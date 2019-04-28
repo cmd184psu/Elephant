@@ -27,7 +27,7 @@ repositories {
 mainClassName = 'com.pinktwins.elephant.Elephant'
 
 dependencies {
-    compile 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.9.7'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.9.8'
     compile 'com.vaadin.external.google:android-json:0.0.20131108.vaadin1'
     compile 'org.apache.commons:commons-collections4:4.0'
     compile 'org.apache.commons:commons-lang3:3.3.2'
