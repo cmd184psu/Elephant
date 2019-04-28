@@ -1,5 +1,8 @@
 # Changelog
 
+##v57
+- Search: only return notes under current note location
+
 ##v56
 - Added Preferences / Fonts / Use theme 'Avenir' - button for macOS.
 - Fixed issue where selecting multiple notes with shift+arrow keys might not work
