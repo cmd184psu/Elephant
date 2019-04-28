@@ -311,6 +311,8 @@ public class LuceneSearchIndex implements SearchIndexInterface {
 	}
 
 	private Set<Note> searchNotes(Query query) throws IOException {
+		final String vaultHome = Vault.getInstance().getHome().getAbsolutePath();
+
 		Set<Note> found = Factory.newHashSet();
 
 		int hitsPerPage = 100000;
@@ -325,7 +327,8 @@ public class LuceneSearchIndex implements SearchIndexInterface {
 			String path = doc.get("path");
 			if (path != null) {
 				File f = new File(path);
-				if (f.exists()) {
+				// Note file must exist and only return notes under current Vault
+				if (f.exists() && f.getAbsolutePath().startsWith(vaultHome)) {
 					found.add(new Note(f));
 				}
 			} else {
