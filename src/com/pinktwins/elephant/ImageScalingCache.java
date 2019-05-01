@@ -117,7 +117,7 @@ public class ImageScalingCache {
 	}
 
 	// http://stackoverflow.com/questions/13605248/java-converting-image-to-bufferedimage
-	private BufferedImage toBufferedImage(Image img, boolean alpha) {
+	public static BufferedImage toBufferedImage(Image img, boolean alpha) {
 		if (img instanceof BufferedImage) {
 			return (BufferedImage) img;
 		}

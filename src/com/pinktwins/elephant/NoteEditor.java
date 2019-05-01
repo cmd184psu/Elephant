@@ -1022,7 +1022,8 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 				LOG.severe("Tried to write attachment image but file already exists: " + imageFilename);
 				return;
 			}
-			ImageIO.write(Images.toBufferedImage(image), "png", f);
+			f.getParentFile().mkdirs();
+			ImageIO.write(ImageScalingCache.toBufferedImage(image, true), "png", f);
 
 			List<File> l = Factory.newArrayList();
 			l.add(f);
