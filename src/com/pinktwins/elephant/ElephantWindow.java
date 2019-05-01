@@ -1860,4 +1860,8 @@ public class ElephantWindow extends JFrame {
 		}
 		return false;
 	}
+	
+	public void pasteImageFromClipboard(Image image) {
+		noteEditor.pasteImageFromClipboard(image);
+	}
 }

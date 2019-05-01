@@ -2,6 +2,7 @@
 
 ##v57
 - Search: only return notes under current note location
+- Added pasting an image from system clipboard
 
 ##v56
 - Added Preferences / Fonts / Use theme 'Avenir' - button for macOS.

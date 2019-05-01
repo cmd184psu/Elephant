@@ -19,11 +19,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -53,6 +56,7 @@ import com.pinktwins.elephant.data.Vault;
 import com.pinktwins.elephant.eventbus.TagsChangedEvent;
 import com.pinktwins.elephant.eventbus.UIEvent;
 import com.pinktwins.elephant.util.CustomMouseListener;
+import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
 import com.pinktwins.elephant.util.LaunchUtil;
 import com.pinktwins.elephant.util.ResizeListener;
@@ -864,7 +868,7 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 			String noteFilename = currentNote.file().getName();
 			try {
 				noteFilename = URLEncoder.encode(noteFilename, "UTF-8");
-				noteFilename = noteFilename.replace("+",  "%20");
+				noteFilename = noteFilename.replace("+", "%20");
 			} catch (UnsupportedEncodingException e) {
 				LOG.severe("Fail: " + e);
 			}
@@ -1006,6 +1010,29 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 	@Override
 	public void attachmentMoved(AttachmentInfo info) {
 		attachments.makeDirty();
+	}
+
+	public void pasteImageFromClipboard(Image image) {
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
+		String s = format.format(new Date());
+		try {
+			String imageFilename = ImageScalingCache.getImageCacheDir() + File.separator + s + ".png";
+			File f = new File(imageFilename);
+			if (f.exists()) {
+				LOG.severe("Tried to write attachment image but file already exists: " + imageFilename);
+				return;
+			}
+			ImageIO.write(Images.toBufferedImage(image), "png", f);
+
+			List<File> l = Factory.newArrayList();
+			l.add(f);
+			filesDropped(l);
+
+			f.delete();
+		} catch (IOException e) {
+			e.printStackTrace();
+			LOG.severe("FAIL: pasting image.");
+		}
 	}
 
 	public CustomEditor getEditor() {

@@ -667,7 +667,7 @@ public class Note implements Comparable<Note> {
 
 		return f;
 	}
-
+	
 	private File[] getAttachmentFiles() {
 		File f = new File(attachmentFolderPath(file));
 		if (f.exists()) {

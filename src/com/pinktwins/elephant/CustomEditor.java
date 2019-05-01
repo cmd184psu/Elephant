@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Image;
 import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -25,7 +26,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
-import javax.activation.DataHandler;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.InputMap;
@@ -526,21 +525,41 @@ public class CustomEditor extends RoundPanel {
 			}, this);
 		}
 
-		public String getClipboardContents() {
-			String result = "";
-
+		// Returns Image or String
+		public Object getClipboardContents() {
 			Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 			// odd: the Object param of getContents is not currently used
 			Transferable contents = clipboard.getContents(null);
 
 			DataFlavor[] fl = contents.getTransferDataFlavors();
 			List<DataFlavor> textFlavors = Factory.newArrayList();
+			List<DataFlavor> imageFlavors = Factory.newArrayList();
 			for (DataFlavor df : fl) {
 				String mime = df.getMimeType();
 				if (mime.indexOf("text/rtf") >= 0 || mime.indexOf("text/plain") >= 0) {
 					textFlavors.add(df);
 				}
+				if (mime.indexOf("image/x-java-image") >= 0) {
+					imageFlavors.add(df);
+				}
 			}
+
+			if (textFlavors.size() == 0 && imageFlavors.size() > 0) {
+				Image img;
+				try {
+					img = (Image) contents.getTransferData(imageFlavors.get(0));
+				} catch (UnsupportedFlavorException e) {
+					LOG.severe("FAIL: unsupported clipboard flavor");
+					return "";
+				} catch (IOException e) {
+					e.printStackTrace();
+					LOG.severe("FAIL: failed to read clipboard image");
+					return "";
+				}
+				return img;
+			}
+
+			String result = "";
 
 			DataFlavor[] te = new DataFlavor[textFlavors.size()];
 			te = textFlavors.toArray(te);
@@ -626,10 +645,16 @@ public class CustomEditor extends RoundPanel {
 			}
 		}
 
-		@Override
-		public void paste() {
-			String s = getClipboardContents();
+		void pasteImage(Image image) {
+			ElephantWindow w = ElephantWindow.getActiveWindow();
+			if (w != null) {
+				w.pasteImageFromClipboard(image);
+			} else {
+				LOG.severe("FAIL: failed to find current ElephantWindow.");
+			}
+		}
 
+		void pasteString(String s) {
 			if (!s.isEmpty()) {
 				try {
 					CPPInfo i = new CPPInfo();
@@ -698,6 +723,22 @@ public class CustomEditor extends RoundPanel {
 					LOG.severe("Fail: " + e);
 				}
 			}
+		}
+
+		@Override
+		public void paste() {
+			Object o = getClipboardContents();
+			if (o instanceof Image) {
+				pasteImage((Image) o);
+				return;
+			}
+
+			if (o instanceof String) {
+				pasteString((String) o);
+				return;
+			}
+
+			LOG.severe("FAIL: clipboard error");
 		}
 
 		@Override
