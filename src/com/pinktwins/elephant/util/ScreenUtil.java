@@ -6,7 +6,7 @@ import java.awt.Window;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-import org.apache.commons.lang.SystemUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 public class ScreenUtil {
 

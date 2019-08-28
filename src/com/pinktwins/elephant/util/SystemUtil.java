@@ -1,6 +1,6 @@
 package com.pinktwins.elephant.util;
 
-import org.apache.commons.lang.text.StrSubstitutor;
+import org.apache.commons.lang3.text.StrSubstitutor;
 
 public class SystemUtil {
 

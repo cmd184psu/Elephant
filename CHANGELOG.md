@@ -1,5 +1,8 @@
 # Changelog
 
+##v58
+- updated Apache Tika to version 1.22
+
 ##v57
 - Search: only return notes under current note location
 - Added pasting an image from system clipboard

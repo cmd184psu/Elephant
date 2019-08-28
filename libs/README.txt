@@ -72,16 +72,11 @@ pegdown-1.4.2.jar
 Source: https://github.com/sirthias/pegdown/
 Copy: https://github.com/jusu/pegdown
 
-tika-app-1.19.1.jar
+tika-app-1.22.jar
 Website: http://tika.apache.org/
 Source: https://github.com/apache/tika/
-Tag: https://github.com/apache/tika/releases/tag/1.19.1
+Tag: https://github.com/apache/tika/releases/tag/1.22
 Copy: https://github.com/jusu/tika
-
-jackson-datatype-jdk8-2.9.8.jar
-Source: https://github.com/FasterXML/jackson-datatype-jdk8
-tika-app-1.19.1.jar contains version 2.9.6 of this.
-This jar will be removed when tika updates to a newer version.
 
 trident.jar
 Website: https://www.pushing-pixels.org/category/trident

@@ -80,6 +80,7 @@ public class IOUtil {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	public static void writeFile(File file, String text) throws IOException {
 		Files.write(text, file, IOUtil.getCharset());
 	}

@@ -288,6 +288,7 @@ public class Settings {
 		return this;
 	}
 
+	@SuppressWarnings("deprecation")
 	private void save() {
 		try {
 			Files.write(map.toString(4), settingsFile(), Charset.forName("UTF-8"));

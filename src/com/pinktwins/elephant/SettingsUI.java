@@ -23,7 +23,7 @@ import javax.swing.JToggleButton;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.WindowConstants;
 
-import org.apache.commons.lang.SystemUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import com.pinktwins.elephant.data.Settings;
 import com.pinktwins.elephant.data.Settings.Keys;
