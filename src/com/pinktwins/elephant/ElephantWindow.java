@@ -605,7 +605,7 @@ public class ElephantWindow extends JFrame {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			try {
-				Desktop.getDesktop().browse(new URI("http://elephant.mine.nu"));
+				Desktop.getDesktop().browse(new URI("https://pinktwins.com/elephant"));
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			} catch (URISyntaxException e1) {
