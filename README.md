@@ -5,4 +5,4 @@ Elephant
 
 Notetaker with a classic interface.
 
-go to http://elephant.mine.nu
+go to https://pinktwins.com/elephant
