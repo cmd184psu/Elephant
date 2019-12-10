@@ -12,13 +12,12 @@ import java.nio.file.attribute.FileTime;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 
-import javax.imageio.ImageIO;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
 import com.pinktwins.elephant.data.Vault;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 
 public class ImageScalingCache {
 
@@ -58,7 +57,7 @@ public class ImageScalingCache {
 		File cache = getCacheFile(sourceFile, w, h);
 		cache.getParentFile().mkdirs();
 		try {
-			ImageIO.write(toBufferedImage(img, "PNG".equals(ext)), ext, cache);
+			ConcurrentImageIO.write(toBufferedImage(img, "PNG".equals(ext)), ext, cache);
 		} catch (IOException e) {
 			LOG.severe("Fail: " + e);
 		}
@@ -109,7 +108,7 @@ public class ImageScalingCache {
 		}
 
 		try {
-			return ImageIO.read(cache);
+			return ConcurrentImageIO.read(cache);
 		} catch (IOException e) {
 			LOG.severe("Fail: " + e);
 			return null;

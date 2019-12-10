@@ -7,13 +7,13 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
@@ -29,6 +29,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.pinktwins.elephant.data.Note;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
 import com.pinktwins.elephant.util.PdfUtil;
@@ -269,10 +270,10 @@ abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseLis
 			default:
 				throw new AssertionError();
 			}
-
+			
 			Image scaled = NoteEditor.scalingCache.get(f, w, h);
 			if (scaled == null) {
-				Image i = ImageIO.read(f);
+				Image i = ConcurrentImageIO.read(f);
 				if (i != null) {
 					scaled = i.getScaledInstance(w, h, Image.SCALE_AREA_AVERAGING);
 					NoteEditor.scalingCache.put(f, w, h, scaled);

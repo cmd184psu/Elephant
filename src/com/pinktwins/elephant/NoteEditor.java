@@ -26,7 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
-import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -53,8 +52,10 @@ import com.pinktwins.elephant.data.Note;
 import com.pinktwins.elephant.data.Note.Meta;
 import com.pinktwins.elephant.data.Notebook;
 import com.pinktwins.elephant.data.Vault;
+import com.pinktwins.elephant.eventbus.NoteChangedEvent;
 import com.pinktwins.elephant.eventbus.TagsChangedEvent;
 import com.pinktwins.elephant.eventbus.UIEvent;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.CustomMouseListener;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
@@ -919,6 +920,10 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 					// Update modify time
 					currentNote.file().setLastModified(System.currentTimeMillis());
 
+					// Update NoteList/thumb, save()? or just via event?
+					saveChanges();
+					//new NoteChangedEvent(currentNote, true).post();
+
 				} catch (IOException e) {
 					LOG.severe("Fail: " + e);
 				}
@@ -1023,7 +1028,7 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 				return;
 			}
 			f.getParentFile().mkdirs();
-			ImageIO.write(ImageScalingCache.toBufferedImage(image, true), "png", f);
+			ConcurrentImageIO.write(ImageScalingCache.toBufferedImage(image, true), "png", f);
 
 			List<File> l = Factory.newArrayList();
 			l.add(f);

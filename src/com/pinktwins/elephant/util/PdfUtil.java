@@ -9,8 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import javax.imageio.ImageIO;
-
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -95,7 +93,7 @@ public class PdfUtil {
 
 			bImg = pdfRenderer.renderImage(n - 1, (float) adjust);
 
-			ImageIO.write(bImg, "png", outPath);
+			ConcurrentImageIO.write(bImg, "png", outPath);
 		} catch (IOException e) {
 			LOG.severe("Fail: " + e);
 		}

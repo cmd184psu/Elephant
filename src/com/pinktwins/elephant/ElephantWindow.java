@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -841,9 +842,15 @@ public class ElephantWindow extends JFrame {
 					if (Vault.getInstance().getNoteCount() < 20000) {
 						System.out.println("Thumbnail cache..");
 						start = System.currentTimeMillis();
-						noteList.cache(Notebook.getNotebookWithAllNotes());
-						System.out.println("Thumbnail cache.. trash..");
-						noteList.cache(Vault.getInstance().findNotebook(Vault.getInstance().getTrash()));
+
+						// 'delete note' synchronizes to Search.lockObject - cache trashed notes
+						// using that same lock.
+						synchronized (Search.lockObject) {
+							noteList.cache(Notebook.getNotebookWithAllNotes());
+							System.out.println("Thumbnail cache.. trash..");
+							noteList.cache(Vault.getInstance().findNotebook(Vault.getInstance().getTrash()));
+						}
+
 						System.out.println("Done in " + (System.currentTimeMillis() - start) + " ms");
 					}
 				}
@@ -1365,6 +1372,10 @@ public class ElephantWindow extends JFrame {
 		}
 	}
 
+	public void filesDropped(List<File> files) {
+		noteEditor.filesDropped(files);
+	}
+	
 	public void setSearchText(String text) {
 		toolBar.search.setText(text);
 	}
@@ -1860,7 +1871,7 @@ public class ElephantWindow extends JFrame {
 		}
 		return false;
 	}
-	
+
 	public void pasteImageFromClipboard(Image image) {
 		noteEditor.pasteImageFromClipboard(image);
 	}

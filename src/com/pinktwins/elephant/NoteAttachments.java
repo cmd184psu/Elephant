@@ -11,13 +11,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import javax.imageio.ImageIO;
 import javax.swing.JTextPane;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.pinktwins.elephant.data.Note;
 import com.pinktwins.elephant.ui.RetinaImageIcon;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
 
@@ -62,7 +62,7 @@ public class NoteAttachments {
 				i = editor.imageAttachmentImageScaler.getCachedScale(f);
 
 				if (i == null) {
-					i = ImageIO.read(f);
+					i = ConcurrentImageIO.read(f);
 					if (i != null) {
 						i = editor.imageAttachmentImageScaler.scale(i, f);
 					}

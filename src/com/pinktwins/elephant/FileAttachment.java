@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
-import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -44,6 +43,7 @@ import org.apache.commons.io.FilenameUtils;
 import com.pinktwins.elephant.NoteEditor.EditorController;
 import com.pinktwins.elephant.data.Note;
 import com.pinktwins.elephant.ui.RetinaImageIcon;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.CustomMouseListener;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
@@ -155,7 +155,7 @@ public class FileAttachment extends JPanel {
 		left.add(icon);
 		left.add(text);
 
-		if(isPdf(f)) {
+		if (isPdf(f)) {
 			right.add(fold);
 		}
 
@@ -275,24 +275,11 @@ public class FileAttachment extends JPanel {
 				Image img = null;
 
 				img = scaler.getCachedScale(page);
-
 				if (img == null) {
-					try {
-						img = ImageIO.read(page);
-					} catch (IndexOutOfBoundsException e) {
-						// XXX suspect method of resilience
-						try {
-							Thread.sleep(100);
-						} catch (InterruptedException e1) {
-						}
-						try {
-							img = ImageIO.read(page);
-						} catch (IndexOutOfBoundsException e2) {
-							System.out.println("Failed reading pdf page file " + page.getAbsolutePath());
-						}
-					}
-
-					if (img != null) {
+					img = ConcurrentImageIO.read(page);
+					if (img == null) {
+						LOG.severe("Failed reading pdf page file " + page.getAbsolutePath());
+					} else {
 						img = scaler.scale(img, page);
 					}
 				}
@@ -435,8 +422,11 @@ public class FileAttachment extends JPanel {
 			// pageIcons - one icon per page
 			final List<ImageIcon> pageIcons = Factory.newArrayList();
 			Image page1 = pages.get(0).getPage();
-			int w = page1.getWidth(null);
-			int h = page1.getHeight(null);
+			int w = 100, h = 100;
+			if (page1 != null) {
+				w = page1.getWidth(null);
+				h = page1.getHeight(null);
+			}
 
 			GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 			Image blank = null;
@@ -459,7 +449,8 @@ public class FileAttachment extends JPanel {
 				pageNum++;
 
 				/*
-				 * If pdf, check if aspect ratio changed. Must add a placeholder with correct aspect ratio, or cropping will occur.
+				 * If pdf, check if aspect ratio changed. Must add a placeholder with correct aspect ratio, or cropping
+				 * will occur.
 				 */
 				if (pdfHolder.pdf != null) {
 					Dimension d = pdfHolder.pdf.pageSize(pageNum);
@@ -534,6 +525,7 @@ public class FileAttachment extends JPanel {
 			if (!workers.isEmpty()) {
 				// One more worker to mark done + cleanup
 				workers.addFinalizer(new SwingWorker<Image, Void>() {
+
 					@Override
 					protected Image doInBackground() throws Exception {
 						return null;
@@ -550,6 +542,7 @@ public class FileAttachment extends JPanel {
 				});
 
 				loadingStartTs = System.currentTimeMillis();
+
 				int cores = Runtime.getRuntime().availableProcessors();
 				for (int n = 0; n < cores; n++) {
 					workers.next();
