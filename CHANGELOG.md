@@ -1,5 +1,10 @@
 # Changelog
 
+##59
+- Drop attachment over notebook's name in Note List to create a new note with it
+- Fixed issue with sometimes getting odd ui state after dropping pdf attachments
+- Updated Apache Tika to version 1.23
+
 ##v58
 - updated Apache Tika to version 1.22
 
