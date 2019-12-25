@@ -621,8 +621,10 @@ public class Note implements Comparable<Note> {
 
 		int n = 1;
 		while (dest.exists()) {
-			String ext = "." + FilenameUtils.getExtension(orgDest);
-			dest = new File(orgDest.replace(ext, " " + n + ext));
+			String name = FilenameUtils.getName(orgDest);
+			String ext = "." + FilenameUtils.getExtension(name);
+			String newName = name.replace(ext,  " " + n + ext);
+			dest = new File(orgDest.replace(name, newName));
 			n++;
 		}
 
