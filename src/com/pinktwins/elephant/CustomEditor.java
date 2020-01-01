@@ -1123,10 +1123,23 @@ public class CustomEditor extends RoundPanel {
 	}
 
 	protected class UndoEditListener implements UndoableEditListener {
+
+		// Only allow undo events sent from actions that happened in thread
+		// this class was created in, due to deadlock inside UndoManager().
+		// See: https://bugs.openjdk.java.net/browse/JDK-8030702
+
+		private long allowUndoEventsFromThreadId;
+
+		public UndoEditListener() {
+			allowUndoEventsFromThreadId = Thread.currentThread().getId();
+		}
+
 		public void undoableEditHappened(UndoableEditEvent e) {
 			// Remember the edit and update the menus
-			undoManager.addEdit(e.getEdit());
-			new UndoRedoStateUpdateRequest(undoManager).post();
+			if (allowUndoEventsFromThreadId == Thread.currentThread().getId()) {
+				undoManager.addEdit(e.getEdit());
+				new UndoRedoStateUpdateRequest(undoManager).post();
+			}
 		}
 	}
 
