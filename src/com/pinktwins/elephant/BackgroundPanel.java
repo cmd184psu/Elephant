@@ -162,17 +162,17 @@ public class BackgroundPanel extends JPanel {
 	}
 
 	/*
-	 * Controls whether components added to this panel should automatically be made transparent. That is, setOpaque(false)
-	 * will be invoked. The default is set to true.
+	 * Controls whether components added to this panel should automatically be made transparent. That is,
+	 * setOpaque(false) will be invoked. The default is set to true.
 	 */
 	public void setTransparentAdd(boolean isTransparentAdd) {
 		this.isTransparentAdd = isTransparentAdd;
 	}
 
 	/*
-	 * Try to make the component transparent. For components that use renderers, like JTable, you will also need to change
-	 * the renderer to be transparent. An easy way to do this it to set the background of the table to a Color using an
-	 * alpha value of 0.
+	 * Try to make the component transparent. For components that use renderers, like JTable, you will also need to
+	 * change the renderer to be transparent. An easy way to do this it to set the background of the table to a Color
+	 * using an alpha value of 0.
 	 */
 	private void makeComponentTransparent(JComponent component) {
 		component.setOpaque(false);
@@ -197,7 +197,6 @@ public class BackgroundPanel extends JPanel {
 		super.paintComponent(g);
 
 		// Invoke the painter for the background
-
 		if (painter != null) {
 			Dimension d = getSize();
 			Graphics2D g2 = (Graphics2D) g;
@@ -262,8 +261,8 @@ public class BackgroundPanel extends JPanel {
 	}
 
 	/*
-	 * Custom painting code for drawing the ACTUAL image as the background. The image is positioned in the panel based on
-	 * the horizontal and vertical alignments specified.
+	 * Custom painting code for drawing the ACTUAL image as the background. The image is positioned in the panel based
+	 * on the horizontal and vertical alignments specified.
 	 */
 	private void drawActual(Graphics g) {
 		Dimension d = getSize();
