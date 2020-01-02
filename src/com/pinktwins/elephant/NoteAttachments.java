@@ -30,6 +30,8 @@ public class NoteAttachments {
 	private Map<Object, File> attachments = Factory.newHashMap();
 	private String loadMark;
 
+	private int noteHash;
+
 	public Set<Object> keySet() {
 		return new HashSet<Object>(attachments.keySet());
 	}
@@ -52,7 +54,6 @@ public class NoteAttachments {
 		}
 
 		JTextPane notePane = editor.editor.getTextPane();
-
 		int caret = notePane.getCaretPosition();
 
 		if (Images.isImage(f)) {
@@ -69,6 +70,11 @@ public class NoteAttachments {
 				}
 
 				if (i != null) {
+					// abort if editor has changed note
+					if (noteHash != note.hashCode()) {
+						return;
+					}
+
 					RetinaImageIcon ii = new RetinaImageIcon(i);
 
 					if (position > notePane.getDocument().getLength()) {
@@ -125,5 +131,9 @@ public class NoteAttachments {
 		}
 
 		return !loadMark.equals(getAttachmentString());
+	}
+
+	public void areForNote(Note note) {
+		noteHash = note.hashCode();
 	}
 }

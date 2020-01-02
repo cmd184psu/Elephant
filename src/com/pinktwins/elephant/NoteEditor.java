@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
@@ -35,6 +36,7 @@ import javax.swing.JScrollBar;
 import javax.swing.JTextPane;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.TransferHandler;
 import javax.swing.text.AbstractDocument.LeafElement;
 import javax.swing.text.AttributeSet;
@@ -52,7 +54,6 @@ import com.pinktwins.elephant.data.Note;
 import com.pinktwins.elephant.data.Note.Meta;
 import com.pinktwins.elephant.data.Notebook;
 import com.pinktwins.elephant.data.Vault;
-import com.pinktwins.elephant.eventbus.NoteChangedEvent;
 import com.pinktwins.elephant.eventbus.TagsChangedEvent;
 import com.pinktwins.elephant.eventbus.UIEvent;
 import com.pinktwins.elephant.util.ConcurrentImageIO;
@@ -85,6 +86,12 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 
 	public static final PegDownProcessor pegDown = new PegDownProcessor(
 			org.pegdown.Parser.AUTOLINKS | org.pegdown.Parser.TABLES | org.pegdown.Parser.FENCED_CODE_BLOCKS | org.pegdown.Parser.DEFINITIONS);
+
+	private static final boolean ASYNC_LOAD = true; // async load notes with attachments
+	private static final Long ASYNC_LIMIT = 100l; // sync load when note can be loaded withing this ms
+	private Workers<Void> loadWorkers = new Workers<Void>();
+	private Map<Integer, Long> loadTimes = Factory.newHashMap();
+	private int loadInProgress = 0;
 
 	static {
 		Iterator<Image> i = Images.iterator(new String[] { "noteeditor", "noteTopShadow", "noteToolsNotebook", "noteToolsTrash", "noteToolsDivider" });
@@ -408,7 +415,7 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 					EventQueue.invokeLater(new Runnable() {
 						@Override
 						public void run() {
-							_load(loadAfterLayout);
+							loadInBackground(loadAfterLayout);
 							loadAfterLayout = null;
 						}
 					});
@@ -612,11 +619,47 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 		if (getWidth() == 0) {
 			loadAfterLayout = note;
 		} else {
-			_load(note);
+			loadInBackground(note);
 		}
 	}
 
-	public void _load(Note note) {
+	public void loadInBackground(final Note note) {
+		if (note == null) {
+			return;
+		}
+
+		boolean attachmentFolderExists = new File(note.attachmentFolderPath()).exists();
+		boolean fastNote = false;
+		if (attachmentFolderExists) {
+			fastNote = loadTimes.containsKey(note.hashCode()) && loadTimes.get(note.hashCode()) < ASYNC_LIMIT;
+		}
+
+		if (ASYNC_LOAD && attachmentFolderExists && !fastNote) {
+			loadWorkers.clear();
+			loadWorkers.add(new SwingWorker<Void, Void>() {
+				@Override
+				protected Void doInBackground() throws Exception {
+					load_impl(note);
+					return null;
+				}
+
+				@Override
+				protected void done() {
+				}
+			});
+			loadWorkers.next();
+		} else {
+			loadWorkers.clear();
+			load_impl(note);
+		}
+	}
+
+	private boolean shouldAbort(int load) {
+		return load != loadInProgress;
+	}
+
+	public void load_impl(final Note note) {
+		long startTs = System.currentTimeMillis();
 
 		if (note == null) {
 			return;
@@ -628,24 +671,54 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 			return;
 		}
 
-		currentNote = note;
-		attachments = new NoteAttachments();
+		loadTimes.remove(note.hashCode());
+
+		final int currentLoad = ++loadInProgress;
 
 		Meta m = note.getMeta();
 
-		editor.setTitle(m.title());
-		editor.setText(note.contents());
-		editor.setMarkdown(note.isMarkdown());
+		currentNote = note;
+
+		attachments = new NoteAttachments();
+		attachments.areForNote(note);
+
+		synchronized (editor) {
+			editor.setTitle(m.title());
+			editor.setText(note.contents());
+			editor.setMarkdown(note.isMarkdown());
+		}
+
+		if (shouldAbort(currentLoad)) {
+			return;
+		}
+
+		synchronized (editor) {
+			Notebook nb = Vault.getInstance().findNotebook(note.file().getParentFile());
+			currNotebook.setText(nb.name());
+
+			noteCreated.setText("Created: " + note.createdStr());
+			noteUpdated.setText("Updated: " + note.updatedStr());
+		}
 
 		tagPane.load(Vault.getInstance().resolveTagIds(m.tags()));
 
-		List<Note.AttachmentInfo> info = currentNote.getAttachmentList();
+		if (shouldAbort(currentLoad)) {
+			return;
+		}
+
+		scrollHolder.setVisible(false);
+		visible(true);
+
+		List<Note.AttachmentInfo> info = note.getAttachmentList();
 		if (!info.isEmpty()) {
 
 			// We need to insert attachments from end to start - thus, sort.
 			Collections.reverse(info);
 
 			for (Note.AttachmentInfo ap : info) {
+				if (shouldAbort(currentLoad)) {
+					return;
+				}
 
 				// If position to insert attachment into would have
 				// component content already, it would be overwritten.
@@ -658,33 +731,35 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 					}
 				}
 
-				attachments.insertFileIntoNote(this, currentNote, ap.f, ap.position);
+				attachments.insertFileIntoNote(this, note, ap.f, ap.position);
 			}
 		}
 
 		attachments.loaded();
 
-		editor.discardUndoBuffer();
-
-		if (note.isMarkdown()) {
-			String contents = note.contents();
-			String html = pegDown.markdownToHtml(editor.isRichText ? Note.plainTextContents(contents) : contents);
-			editor.displayHtml(currentNote.file(), html);
+		if (shouldAbort(currentLoad)) {
+			return;
 		}
 
-		if (note.isHtml()) {
-			editor.displayBrowser(currentNote.file());
+		synchronized (editor) {
+			editor.discardUndoBuffer();
+
+			if (note.isMarkdown()) {
+				String contents = note.contents();
+				String html = pegDown.markdownToHtml(editor.isRichText ? Note.plainTextContents(contents) : contents);
+				editor.displayHtml(note.file(), html);
+			}
+
+			if (note.isHtml()) {
+				editor.displayBrowser(note.file());
+			}
 		}
 
-		visible(true);
+		if (shouldAbort(currentLoad)) {
+			return;
+		}
 
-		Notebook nb = Vault.getInstance().findNotebook(note.file().getParentFile());
-		currNotebook.setText(nb.name());
-
-		// trash.setVisible(!nb.folder().equals(Vault.getInstance().getTrash()));
-
-		noteCreated.setText("Created: " + note.createdStr());
-		noteUpdated.setText("Updated: " + note.updatedStr());
+		scrollHolder.setVisible(true);
 
 		caretChanged(editor.getTextPane());
 
@@ -693,6 +768,8 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 		}
 
 		previousNote = currentNote;
+
+		loadTimes.put(note.hashCode(), System.currentTimeMillis() - startTs);
 	}
 
 	private void reloadTags() {
@@ -922,7 +999,7 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 
 					// Update NoteList/thumb, save()? or just via event?
 					saveChanges();
-					//new NoteChangedEvent(currentNote, true).post();
+					// new NoteChangedEvent(currentNote, true).post();
 
 				} catch (IOException e) {
 					LOG.severe("Fail: " + e);

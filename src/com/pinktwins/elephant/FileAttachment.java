@@ -448,6 +448,15 @@ public class FileAttachment extends JPanel {
 			PreviewPageProvider ppp : pages) {
 				pageNum++;
 
+				if (noteHash != editor.noteHash()) {
+					return;
+				}
+
+				// Set caret for 'tp' manually, since insert-methods do not update the caret position
+				// immediately when running under SwingWorker on another thread.
+				// We are adding 4 'characters' for each page:
+				int caretPosition = pageNum * 4;
+
 				/*
 				 * If pdf, check if aspect ratio changed. Must add a placeholder with correct aspect ratio, or cropping
 				 * will occur.
@@ -465,10 +474,13 @@ public class FileAttachment extends JPanel {
 				RetinaImageIcon ii = new RetinaImageIcon(blank);
 				pageIcons.add(ii);
 
-				addPageBreak(tp, style);
-				tp.insertIcon(ii);
+				addPageBreak(tp, caretPosition - 4, style); // uses +2 caret
+
+				tp.setCaretPosition(caretPosition - 2);
+				tp.insertIcon(ii); // uses +1 caret
+
 				try {
-					tp.getDocument().insertString(tp.getCaretPosition(), "\n", style);
+					tp.getDocument().insertString(caretPosition - 1, "\n", style); // uses +1 caret
 				} catch (BadLocationException e) {
 					LOG.severe("Fail: " + e);
 				}
@@ -484,6 +496,9 @@ public class FileAttachment extends JPanel {
 				workers.add(new SwingWorker<Image, Void>() {
 					@Override
 					protected Image doInBackground() throws Exception {
+						if (noteHash != editor.noteHash()) {
+							return null;
+						}
 						return page.getPage();
 					}
 
@@ -517,7 +532,6 @@ public class FileAttachment extends JPanel {
 						} catch (InterruptedException e) {
 							LOG.severe("Fail: " + e);
 						}
-
 					}
 				});
 			}
@@ -572,15 +586,17 @@ public class FileAttachment extends JPanel {
 
 	static final Color pageBreakColor = Color.decode("#c0c0c0");
 
-	void addPageBreak(JTextPane tp, Style style) {
+	void addPageBreak(JTextPane tp, int offset, Style style) {
 		JPanel p = new JPanel(null);
 		p.setBounds(0, 0, ElephantWindow.bigWidth, 1);
 		p.setBackground(pageBreakColor);
 		p.setBorder(ElephantWindow.emptyBorder);
-		tp.insertComponent(p);
+
+		tp.setCaretPosition(offset);
+		tp.insertComponent(p); // caret pos +1
 
 		try {
-			tp.getDocument().insertString(tp.getCaretPosition(), "\n", style);
+			tp.getDocument().insertString(offset + 1, "\n", style); // caret pos +1
 		} catch (BadLocationException e) {
 			LOG.severe("Fail: " + e);
 		}
