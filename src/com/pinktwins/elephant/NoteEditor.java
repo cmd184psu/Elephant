@@ -811,7 +811,7 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 					SimpleImageInfo i = new SimpleImageInfo(f);
 					float aspect = i.getWidth() / (float) i.getHeight();
 					height = (long) (width / aspect);
-					html = html.replace(imageTag, "<img width=\"" + width + "\" height=\"" + height + "\" src=");
+					html = html.replaceFirst(imageTag, "<img width=\"" + width + "\" height=\"" + height + "\" src=");
 				} catch (Exception e) {
 					LOG.severe("Failed info for '" + f.getAbsolutePath() + "'");
 					return html;

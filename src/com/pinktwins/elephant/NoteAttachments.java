@@ -3,6 +3,8 @@ package com.pinktwins.elephant;
 import java.awt.Image;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -139,8 +141,13 @@ public class NoteAttachments {
 
 	public File findFile(String filename) {
 		for (File f : attachments.values()) {
-			if (f.getName().equals(filename)) {
-				return f;
+			try {
+				if (URLDecoder.decode(f.getName(), "UTF-8").equals(URLDecoder.decode(filename, "UTF-8"))) {
+					return f;
+				}
+			} catch (UnsupportedEncodingException e) {
+				LOG.severe("Fail: URLDecoding with UTF-8: " + filename);
+				return null;
 			}
 		}
 		return null;
