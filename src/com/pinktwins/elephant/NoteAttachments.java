@@ -136,4 +136,13 @@ public class NoteAttachments {
 	public void areForNote(Note note) {
 		noteHash = note.hashCode();
 	}
+
+	public File findFile(String filename) {
+		for (File f : attachments.values()) {
+			if (f.getName().equals(filename)) {
+				return f;
+			}
+		}
+		return null;
+	}
 }

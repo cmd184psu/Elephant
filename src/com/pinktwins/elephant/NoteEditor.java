@@ -747,6 +747,11 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 			if (note.isMarkdown()) {
 				String contents = note.contents();
 				String html = pegDown.markdownToHtml(editor.isRichText ? Note.plainTextContents(contents) : contents);
+
+				if (html.indexOf("<img src=") != -1) {
+					html = fixMardownHtmlImageTags(html);
+				}
+
 				editor.displayHtml(note.file(), html);
 			}
 
@@ -770,6 +775,52 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 		previousNote = currentNote;
 
 		loadTimes.put(note.hashCode(), System.currentTimeMillis() - startTs);
+	}
+
+	private String fixMardownHtmlImageTags(String html) {
+		// Markdown notes are converted to html and shown in editor.htmlPane.
+		// Images are shown with simple <img src="..."> tags and this combination
+		// doesn't resize images for Retina displays correctly.
+		// Try to fix that by excplicitly setting image sizes.
+
+		// Assume non-retina is fine for now
+		if (!ScreenUtil.isRetina()) {
+			return html;
+		}
+
+		// Scale to 50% for Retina display
+		long width = getUsableEditorWidth() / 2;
+
+		// Modify "<img src=" -> "<img width="..." height="..." src="
+		String imageTag = "<img src=";
+		while (html.indexOf(imageTag) != -1) {
+
+			// width is 'editor width', need to read image width and height to
+			// scale height in correct aspect ratio.
+			long height = width;
+
+			int n = html.indexOf(imageTag);
+			n += imageTag.length() + 1;
+			if (n >= html.length()) {
+				return html;
+			}
+			String filename = html.substring(n).split("\"")[0];
+			File f = attachments.findFile(filename);
+			if (f != null) {
+				try {
+					SimpleImageInfo i = new SimpleImageInfo(f);
+					float aspect = i.getWidth() / (float) i.getHeight();
+					height = (long) (width / aspect);
+					html = html.replace(imageTag, "<img width=\"" + width + "\" height=\"" + height + "\" src=");
+				} catch (Exception e) {
+					LOG.severe("Failed info for '" + f.getAbsolutePath() + "'");
+					return html;
+				}
+			} else {
+				return html;
+			}
+		}
+		return html;
 	}
 
 	private void reloadTags() {
