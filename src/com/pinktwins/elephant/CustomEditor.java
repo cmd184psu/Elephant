@@ -380,7 +380,11 @@ public class CustomEditor extends RoundPanel {
 					padding.setVisible(true);
 					padding.setPreferredSize(new Dimension(10, preferred));
 				} else {
-					padding.setVisible(false);
+					if (preferred == 0) {
+						padding.setVisible(true);
+					} else {
+						padding.setVisible(false);
+					}
 				}
 			}
 		});
