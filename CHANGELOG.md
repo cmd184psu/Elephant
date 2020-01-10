@@ -1,5 +1,9 @@
 # Changelog
 
+##60
+- Fixed issue 'Markdown images are too wide in preview mode' #116
+- Note loading no longer blocks ui thread, making Elephant more responsive
+
 ##59
 - Drop attachment over notebook's name in Note List to create a new note with it
 - Fixed issue with sometimes getting odd ui state after dropping pdf attachments
