@@ -846,9 +846,14 @@ public class ElephantWindow extends JFrame {
 						// 'delete note' synchronizes to Search.lockObject - cache trashed notes
 						// using that same lock.
 						synchronized (Search.lockObject) {
-							noteList.cache(Notebook.getNotebookWithAllNotes());
+							Notebook all = Notebook.getNotebookWithAllNotes();
+							noteList.prepareCache(all);
+							noteList.cache(all);
 							System.out.println("Thumbnail cache.. trash..");
-							noteList.cache(Vault.getInstance().findNotebook(Vault.getInstance().getTrash()));
+
+							Notebook trash = Vault.getInstance().findNotebook(Vault.getInstance().getTrash());
+							noteList.prepareCache(trash);
+							noteList.cache(trash);
 						}
 
 						System.out.println("Done in " + (System.currentTimeMillis() - start) + " ms");
@@ -1375,7 +1380,7 @@ public class ElephantWindow extends JFrame {
 	public void filesDropped(List<File> files) {
 		noteEditor.filesDropped(files);
 	}
-	
+
 	public void setSearchText(String text) {
 		toolBar.search.setText(text);
 	}

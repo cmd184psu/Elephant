@@ -10,12 +10,12 @@ import java.io.File;
 import java.util.Iterator;
 
 import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextPane;
 
 import com.pinktwins.elephant.data.Note;
+import com.pinktwins.elephant.ui.RetinaImageIcon;
 import com.pinktwins.elephant.util.Images;
 import com.pinktwins.elephant.util.ScreenUtil;
 
@@ -108,16 +108,27 @@ public class SnippetViewNoteItem extends NoteItem {
 
 	@Override
 	protected boolean addPictureThumbnail(File f) {
-		Image scaled = getPictureThumbnail(f);
-		if (scaled != null) {
-			JLabel l = new JLabel("");
-			l.setIcon(new ImageIcon(scaled));
-			l.setBounds(0, 0, 75, 75);
+		int w;
 
-			JPanel pa = new JPanel(null);
-			pa.setBorder(ElephantWindow.emptyBorder);
+		Image scaled = getPictureThumbnail(f, NoteList.ListModes.SNIPPETVIEW);
+		if (scaled != null) {
+			JLabel iconLabel = new JLabel("");
+			iconLabel.setIcon(new RetinaImageIcon(scaled));
+			iconLabel.setBounds(0, 0, 75, 75);
+
+			JPanel pa = new JPanel(new BorderLayout());
+			w = scaled.getWidth(null);
+			if (ScreenUtil.isRetina()) {
+				w /= 2;
+			}
+			if (w >= 75) {
+				pa.setBorder(ElephantWindow.emptyBorder);
+			} else {
+				iconLabel.setBounds(0, 0, w, 75);
+				pa.setBorder(BorderFactory.createEmptyBorder(0, 75 - w, 0, 0));
+			}
 			pa.setBackground(Color.WHITE);
-			pa.add(l);
+			pa.add(iconLabel);
 
 			previewPane.add(pa);
 			return true;
@@ -150,7 +161,7 @@ public class SnippetViewNoteItem extends NoteItem {
 
 			g.setColor(kColorNoteBorder);
 			g.drawLine(0, getHeight() - y, getWidth() - 1, getHeight() - y);
-			
+
 			g.setColor(kColorNoteHighlight);
 			g.drawLine(0, 0, getWidth() - 1, 0);
 		}

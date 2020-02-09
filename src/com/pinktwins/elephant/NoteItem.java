@@ -32,6 +32,7 @@ import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
 import com.pinktwins.elephant.util.PdfUtil;
+import com.pinktwins.elephant.util.ScreenUtil;
 import com.pinktwins.elephant.util.SimpleImageInfo;
 
 abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseListener {
@@ -123,7 +124,7 @@ abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseLis
 			item.resetFonts();
 		}
 	}
-	
+
 	protected NoteItem(Note n, NoteList.ListModes listMode) {
 		super();
 		note = n;
@@ -142,7 +143,7 @@ abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseLis
 			break;
 		}
 	}
-	
+
 	protected void createPreviewComponents(JPanel previewPane) {
 		previewPane.removeAll();
 
@@ -233,6 +234,7 @@ abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseLis
 				if (done) {
 					break;
 				}
+
 				File previewDir = FileAttachment.getPreviewDirectory(i.f);
 				previewDir.mkdirs();
 				if (previewDir.exists()) {
@@ -250,38 +252,99 @@ abstract class NoteItem extends JPanel implements Comparable<NoteItem>, MouseLis
 		}
 	}
 
-	protected Image getPictureThumbnail(File f) {
+	static public void preparePictureThumbnail(Note note, NoteList.ListModes listMode) {
+		for (Note.AttachmentInfo i : note.getAttachmentList()) {
+			String ext = FilenameUtils.getExtension(i.f.getAbsolutePath()).toLowerCase();
+
+			if (Images.isImage(i.f)) {
+				Image img = getPictureThumbnail(i.f, listMode);
+				if (img != null) {
+					img.flush();
+				}
+				return;
+			}
+
+			if ("pdf".equals(ext)) {
+				File[] files = FileAttachment.previewFiles(i.f);
+				for (File ff : files) {
+					if (Images.isImage(ff)) {
+						Image img = getPictureThumbnail(ff, listMode);
+						if (img != null) {
+							img.flush();
+						}
+						return;
+					}
+				}
+
+				File previewDir = FileAttachment.getPreviewDirectory(i.f);
+				previewDir.mkdirs();
+				if (previewDir.exists()) {
+					PdfUtil pdf = new PdfUtil(i.f);
+					if (pdf.numPages() > 0) {
+						File ff = FileAttachment.getPreviewFileForPage(previewDir, 1);
+						if (pdf.writePage(1, ff, -1) != null) {
+							Image img = getPictureThumbnail(ff, listMode);
+							if (img != null) {
+								img.flush();
+							}
+						}
+						pdf.close();
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	static protected Image getPictureThumbnail(File f, NoteList.ListModes listMode) {
 		try {
 			int w, h;
+			SimpleImageInfo info;
 
 			switch (listMode) {
 			case CARDVIEW:
-				SimpleImageInfo info = new SimpleImageInfo(f);
+				info = new SimpleImageInfo(f);
 
 				float scale = info.getWidth() / (float) (196 - 12 - 4);
 				w = (int) (info.getWidth() / scale);
 				h = (int) ((float) info.getHeight() / scale);
 				break;
 			case SNIPPETVIEW:
-				w = 75;
-				h = 75;
+				info = new SimpleImageInfo(f);
+				if (info.getWidth() >= info.getHeight()) {
+					w = 75;
+					h = -1;
+				} else {
+					w = -1;
+					h = 75;
+				}
 				break;
 			default:
 				throw new AssertionError();
 			}
-			
+
+			if (ScreenUtil.isRetina()) {
+				if (w > 0) {
+					w *= 2;
+				}
+				if (h > 0) {
+					h *= 2;
+				}
+			}
+
 			Image scaled = NoteEditor.scalingCache.get(f, w, h);
 			if (scaled == null) {
 				Image i = ConcurrentImageIO.read(f);
 				if (i != null) {
 					scaled = i.getScaledInstance(w, h, Image.SCALE_AREA_AVERAGING);
 					NoteEditor.scalingCache.put(f, w, h, scaled);
+					i.flush();
 				}
 			}
 
 			return scaled;
 		} catch (IOException e) {
-			LOG.severe("Fail: " + e);
+			LOG.severe("Fail: " + e + ": " + f.getAbsolutePath());
 		}
 
 		return null;

@@ -7,11 +7,11 @@ import java.awt.Image;
 import java.io.File;
 
 import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import com.pinktwins.elephant.data.Note;
+import com.pinktwins.elephant.ui.RetinaImageIcon;
 
 public class CardViewNoteItem extends NoteItem {
 
@@ -62,10 +62,10 @@ public class CardViewNoteItem extends NoteItem {
 
 	@Override
 	protected boolean addPictureThumbnail(File f) {
-		Image scaled = getPictureThumbnail(f);
+		Image scaled = getPictureThumbnail(f, NoteList.ListModes.CARDVIEW);
 		if (scaled != null) {
 			JLabel l = new JLabel("");
-			l.setIcon(new ImageIcon(scaled));
+			l.setIcon(new RetinaImageIcon(scaled));
 			l.setBounds(0, 4, 190, 99);
 
 			JPanel pa = new JPanel(null);

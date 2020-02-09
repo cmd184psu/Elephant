@@ -201,6 +201,15 @@ public class NoteList extends BackgroundPanel implements NoteItemListener {
 		setTransferHandler(new NoteListTransferHandler());
 	}
 
+	public void prepareCache(Notebook notebook) {
+		// Scale NoteItem thumbnails into .imagecache folder, don't do anything else.
+		// Do cache() after this is complete.
+		// This avoids some PdfBox internal memory usage, which GC couldn't purge.
+		for (Note n : notebook.getNotes()) {
+			NoteItem.preparePictureThumbnail(n, listMode);
+		}
+	}
+
 	public void cache(Notebook notebook) {
 		for (Note n : notebook.getNotes()) {
 			NoteItem.itemOf(n, listMode);
