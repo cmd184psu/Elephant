@@ -41,6 +41,6 @@ public class Images {
 		}
 
 		String s = FilenameUtils.getExtension(f.getName()).toLowerCase();
-		return "png tif jpg jpeg bmp gif".indexOf(s) >= 0;
+		return !s.isEmpty() && "png tif jpg jpeg bmp gif".indexOf(s) >= 0;
 	}
 }
