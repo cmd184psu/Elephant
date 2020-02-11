@@ -1,5 +1,11 @@
 # Changelog
 
+##61
+- Note thumbs are scaled respecting aspect ratio on Snippet View
+- Note thumbs now use Retina resolution
+- Avoid PdfBox memory issue while caching thumbs
+- Fixed pasting image from clipboard on linux
+
 ##60
 - Fixed issue 'Markdown images are too wide in preview mode' #116
 - Note loading no longer blocks ui thread, making Elephant more responsive
