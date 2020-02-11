@@ -548,19 +548,20 @@ public class CustomEditor extends RoundPanel {
 				}
 			}
 
-			if (textFlavors.size() == 0 && imageFlavors.size() > 0) {
-				Image img;
-				try {
-					img = (Image) contents.getTransferData(imageFlavors.get(0));
-				} catch (UnsupportedFlavorException e) {
-					LOG.severe("FAIL: unsupported clipboard flavor");
-					return "";
-				} catch (IOException e) {
-					e.printStackTrace();
-					LOG.severe("FAIL: failed to read clipboard image");
-					return "";
+			if (imageFlavors.size() > 0) {
+				DataFlavor df = imageFlavors.get(0);
+				if (contents.isDataFlavorSupported(df)) {
+					try {
+						Image img = (Image) contents.getTransferData(df);
+						return img;
+					} catch (UnsupportedFlavorException e) {
+						LOG.severe("FAIL: unsupported clipboard flavor: " + df.getHumanPresentableName());
+					} catch (IOException e) {
+						e.printStackTrace();
+						LOG.severe("FAIL: failed to read clipboard image as: " + df.getHumanPresentableName());
+					}
 				}
-				return img;
+				// fall thru to retrieving clipboard contents as text
 			}
 
 			String result = "";
