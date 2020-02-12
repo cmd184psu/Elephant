@@ -75,10 +75,12 @@ import com.pinktwins.elephant.ui.HomeAction;
 import com.pinktwins.elephant.ui.PasswordDialog;
 import com.pinktwins.elephant.ui.ShiftTabAction;
 import com.pinktwins.elephant.ui.TabAction;
+import com.pinktwins.elephant.util.ConcurrentImageIO;
 import com.pinktwins.elephant.util.CryptoUtil;
 import com.pinktwins.elephant.util.CustomMouseListener;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.IOUtil;
+import com.pinktwins.elephant.util.Images;
 import com.pinktwins.elephant.util.ResizeListener;
 import com.pinktwins.elephant.util.RtfUtil;
 import com.pinktwins.elephant.util.TextComponentUtil;
@@ -529,22 +531,43 @@ public class CustomEditor extends RoundPanel {
 			}, this);
 		}
 
-		// Returns Image or String
+		// Returns Image or String or List<File>
 		public Object getClipboardContents() {
 			Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 			// odd: the Object param of getContents is not currently used
 			Transferable contents = clipboard.getContents(null);
 
 			DataFlavor[] fl = contents.getTransferDataFlavors();
+			List<DataFlavor> fileFlavors = Factory.newArrayList();
 			List<DataFlavor> textFlavors = Factory.newArrayList();
 			List<DataFlavor> imageFlavors = Factory.newArrayList();
+
 			for (DataFlavor df : fl) {
 				String mime = df.getMimeType();
+				if (mime.indexOf("application/x-java-file-list") >= 0) {
+					fileFlavors.add(df);
+				}
 				if (mime.indexOf("text/rtf") >= 0 || mime.indexOf("text/plain") >= 0) {
 					textFlavors.add(df);
 				}
 				if (mime.indexOf("image/x-java-image") >= 0) {
 					imageFlavors.add(df);
+				}
+			}
+
+			if (fileFlavors.size() > 0) {
+				DataFlavor df = fileFlavors.get(0);
+				if (contents.isDataFlavorSupported(df)) {
+					try {
+						@SuppressWarnings("unchecked")
+						List<File> l = (List<File>) contents.getTransferData(df);
+						return l;
+					} catch (UnsupportedFlavorException e) {
+						LOG.severe("FAIL: unsupported clipboard flavor: " + df.getHumanPresentableName());
+					} catch (IOException e) {
+						e.printStackTrace();
+						LOG.severe("FAIL: failed to read clipboard file as: " + df.getHumanPresentableName());
+					}
 				}
 			}
 
@@ -570,6 +593,7 @@ public class CustomEditor extends RoundPanel {
 			te = textFlavors.toArray(te);
 
 			DataFlavor best = DataFlavor.selectBestTextFlavor(te);
+
 			boolean hasTransferableText = (contents != null) && contents.isDataFlavorSupported(best);
 			if (hasTransferableText) {
 				try {
@@ -647,6 +671,17 @@ public class CustomEditor extends RoundPanel {
 						LOG.severe("Fail: " + e);
 					}
 				}
+			}
+		}
+
+		void pasteFile(File f) {
+			ElephantWindow w = ElephantWindow.getActiveWindow();
+			if (w != null) {
+				List<File> l = Factory.newArrayList();
+				l.add(f);
+				w.filesDropped(l);
+			} else {
+				LOG.severe("FAIL: failed to find current ElephantWindow.");
 			}
 		}
 
@@ -740,6 +775,30 @@ public class CustomEditor extends RoundPanel {
 
 			if (o instanceof String) {
 				pasteString((String) o);
+				return;
+			}
+
+			if (o instanceof List<?>) {
+				@SuppressWarnings("unchecked")
+				List<File> l = (List<File>) o;
+				for (File f : l) {
+					try {
+						if (Images.isImage(f)) {
+							Image img = ConcurrentImageIO.read(f);
+							if (img != null) {
+								pasteImage(img);
+							} else {
+								LOG.severe("Fail: reading image " + f.getAbsolutePath());
+							}
+						} else {
+							// Copied a file which is not an image. Just drop it normally.
+							pasteFile(f);
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+						LOG.severe("Fail: reading image " + f.getAbsolutePath());
+					}
+				}
 				return;
 			}
 
