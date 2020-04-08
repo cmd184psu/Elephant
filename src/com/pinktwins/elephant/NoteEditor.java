@@ -41,6 +41,7 @@ import javax.swing.TransferHandler;
 import javax.swing.text.AbstractDocument.LeafElement;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter;
 import javax.swing.text.Highlighter;
 import javax.swing.text.Highlighter.Highlight;
 
@@ -92,6 +93,22 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 	private Workers<Void> loadWorkers = new Workers<Void>();
 	private Map<Integer, Long> loadTimes = Factory.newHashMap();
 	private int loadInProgress = 0;
+
+	private int highlightPosition = -1;
+
+	private DefaultHighlightPainter browsingPainter = new DefaultHighlightPainter(Color.decode("#fca2bd"));
+
+	private class CurrentNoteSearchMatchHighlight {
+		Object browsingTag; // tag showed by currenthighlightPosition
+		Object displacedTag; // tag hidden so browsingTag is visible
+		Point point; // begin, end of both browsing and displaced
+
+		public boolean isValid() {
+			return browsingTag != null && displacedTag != null && point != null;
+		}
+	}
+
+	CurrentNoteSearchMatchHighlight match = null;
 
 	static {
 		Iterator<Image> i = Images.iterator(new String[] { "noteeditor", "noteTopShadow", "noteToolsNotebook", "noteToolsTrash", "noteToolsDivider" });
@@ -612,6 +629,8 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 		editor.saveSelection();
 		editor.clear();
 		isDirty = false;
+		highlightPosition = -1;
+		match = null;
 		visible(false);
 	}
 
@@ -920,9 +939,19 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 		}
 	}
 
-	@Override
-	public void editingFocusGained() {
-		isDirty = true;
+	public int getHighlightCount() {
+		JTextPane p = editor.getEditorPane();
+		if (p != null) {
+			Highlighter h = p.getHighlighter();
+			if (h != null) {
+				Highlight[] his = h.getHighlights();
+				return his.length;
+			}
+		}
+		return 0;
+	}
+
+	public void clearSearchHighlights() {
 		JTextPane p = editor.getEditorPane();
 		if (p != null) {
 			Highlighter h = p.getHighlighter();
@@ -934,9 +963,102 @@ public class NoteEditor extends BackgroundPanel implements EditorEventListener {
 					if (window.isSearchHighlight(hl.getPainter())) {
 						h.removeHighlight(hl);
 					}
+
+					// Also remove current note search match highlight
+					if (match != null && match.point != null) {
+						if (match.point.x == hl.getStartOffset() && match.point.y == hl.getEndOffset()) {
+							h.removeHighlight(hl);
+						}
+					}
 				}
 			}
 		}
+	}
+
+	public void resetHighlightPosition() {
+		highlightPosition = -1;
+		match = null;
+	}
+
+	public int getHighlightPosition() {
+		return highlightPosition;
+	}
+
+	// go to previous (delta -1) or next (delta 1) highlight
+	public void changeHighlight(int delta) {
+		int count = getHighlightCount();
+
+		// Browsing highlights adds additional hl, sub one from count here
+		if (match != null) {
+			count--;
+		}
+
+		if (count <= 0) {
+			return;
+		}
+
+		if (count == 1 && match != null) {
+			return;
+		}
+		
+		highlightPosition += delta;
+		if (highlightPosition < 0) {
+			highlightPosition = count - 1;
+		}
+		highlightPosition %= count;
+
+		JTextPane p = editor.getEditorPane();
+		if (p != null) {
+			Highlighter h = p.getHighlighter();
+			if (h != null) {
+				Highlight[] his = h.getHighlights();
+				Highlight hl = his[highlightPosition];
+				int offset = hl.getStartOffset();
+
+				// Move browsing highlight to new position.
+
+				// Remove previous browsing highlight
+				if (match != null && match.isValid()) {
+					try {
+						// Return displaced tag to original dimensions, making it visible
+						h.changeHighlight(match.displacedTag, match.point.x, match.point.y);
+					} catch (BadLocationException e) {
+					}
+					// remove browsing highlight
+					h.removeHighlight(match.browsingTag);
+					match = null;
+				}
+
+				// Create new match browsing highlight
+				match = new CurrentNoteSearchMatchHighlight();
+
+				try {
+					match.browsingTag = h.addHighlight(offset, hl.getEndOffset(), browsingPainter);
+					match.displacedTag = hl;
+					match.point = new Point(offset, hl.getEndOffset());
+
+					// make 'displaced' match highlight length of 0, making it invisible so browsing highlight is shown
+					h.changeHighlight(hl, 0, 0);
+				} catch (BadLocationException e1) {
+				}
+
+				try {
+					Rectangle rect = p.modelToView(offset);
+					if (rect != null) {
+						rect.y -= 150;
+						rect.height += 300;
+						p.scrollRectToVisible(rect);
+					}
+				} catch (BadLocationException e) {
+				}
+			}
+		}
+	}
+
+	@Override
+	public void editingFocusGained() {
+		isDirty = true;
+		clearSearchHighlights();
 	}
 
 	@Override

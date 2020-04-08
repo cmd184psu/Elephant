@@ -1,6 +1,8 @@
 package com.pinktwins.elephant.data;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,6 +95,12 @@ public class SearchIndexer {
 		memoryIndex.digestText(note, meta.title());
 		memoryIndex.digestText(note, "title:" + meta.title());
 
+		try {
+			String uniquePath = URLEncoder.encode(note.file().getAbsolutePath(), "UTF-8");
+			memoryIndex.digestText(note, "path:" + uniquePath);
+		} catch (UnsupportedEncodingException e) {
+		}
+
 		if (useLucene) {
 			luceneIndex.digestText(note, null);
 		} else {
@@ -122,11 +130,10 @@ public class SearchIndexer {
 
 		// date to sort by creation and last modified date
 		memoryIndex.digestDate(note, meta.created());
-		
+
 		if (meta.created() < note.lastModified())
 			memoryIndex.digestDate(note, note.lastModified());
-				
-		
+
 		addDigestTimestamp(note);
 	}
 

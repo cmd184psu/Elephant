@@ -314,6 +314,10 @@ public class NoteList extends BackgroundPanel implements NoteItemListener {
 		previousNotebook = notebook;
 	}
 
+	public void setTitle(String s) {
+		ui.currentName.setText(s);
+	}
+
 	public static int separatorLineY() {
 		return separatorLineY;
 	}

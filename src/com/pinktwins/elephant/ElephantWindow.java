@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Image;
 import java.awt.KeyEventDispatcher;
@@ -22,8 +23,10 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -99,7 +102,7 @@ public class ElephantWindow extends JFrame {
 	public static final Color colorPreviewGray = Color.decode("#666663");
 	public static final Color colorPreviewGrayOlder = Color.decode("#b1b1b1");
 
-	private static final Color[] colorHighlights = { Color.YELLOW, Color.PINK, Color.CYAN, Color.ORANGE, Color.GREEN };
+	private static final Color[] colorHighlights = { Color.decode("#b0fd78"), Color.decode("#fcde70"), Color.decode("#b7fcea"), Color.decode("#fdfa80") };
 	private static final DefaultHighlightPainter[] highlightPainters = new DefaultHighlightPainter[colorHighlights.length];
 
 	private static final String windowTitle = "Elephant";
@@ -226,7 +229,46 @@ public class ElephantWindow extends JFrame {
 	ActionListener searchAction = new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
+			boolean shouldClear = toolBar.searchMode == Toolbar.SearchModes.currentNote;
+			// && !toolBar.search.getText().isEmpty();
+
+			toolBar.setSearchMode(Toolbar.SearchModes.allNotes);
 			toolBar.focusSearch();
+
+			if (shouldClear) {
+				if (toolBar.search.getText().isEmpty()) {
+					search("");
+				} else {
+					toolBar.search.setText("");
+				}
+			}
+		}
+	};
+
+	ActionListener searchCurrentNoteAction = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			toolBar.setSearchMode(Toolbar.SearchModes.currentNote);
+			toolBar.focusSearch();
+
+			if (!toolBar.search.getText().isEmpty()) {
+				Iterator<Note> it = noteList.getSelection().iterator();
+				if (it.hasNext()) {
+					Note n = it.next();
+					if (n != null) {
+						Notebook nb = new Notebook();
+						nb.setName(Notebook.NAME_SEARCH);
+						nb.setToSearchResultNotebook();
+						nb.addNote(n);
+
+						toolBar.search.setText("");
+
+						noteList.load(nb);
+						noteList.selectNote(0);
+						noteEditor.clearSearchHighlights();
+					}
+				}
+			}
 		}
 	};
 
@@ -1068,13 +1110,29 @@ public class ElephantWindow extends JFrame {
 						case KeyEvent.VK_UP:
 							// When search is active, keys UP/DOWN change note list selection
 							if (toolBar.isEditing()) {
-								noteList.changeSelection(-1, e);
+								if (toolBar.searchMode == Toolbar.SearchModes.currentNote) {
+									noteEditor.changeHighlight(-1);
+									int count = noteEditor.getHighlightCount() - 1;
+									if (count > 1) {
+										noteList.setTitle((noteEditor.getHighlightPosition() + 1) + " of " + count + " match" + (count == 1 ? "" : "es"));
+									}
+								} else {
+									noteList.changeSelection(-1, e);
+								}
 								return true;
 							}
 							break;
 						case KeyEvent.VK_DOWN:
 							if (toolBar.isEditing()) {
-								noteList.changeSelection(1, e);
+								if (toolBar.searchMode == Toolbar.SearchModes.currentNote) {
+									noteEditor.changeHighlight(1);
+									int count = noteEditor.getHighlightCount() - 1;
+									if (count > 1) {
+										noteList.setTitle((noteEditor.getHighlightPosition() + 1) + " of " + count + " match" + (count == 1 ? "" : "es"));
+									}
+								} else {
+									noteList.changeSelection(1, e);
+								}
 								return true;
 							}
 							break;
@@ -1386,6 +1444,56 @@ public class ElephantWindow extends JFrame {
 	}
 
 	public void search(String text) {
+		if (toolBar.searchMode == Toolbar.SearchModes.currentNote) {
+			if (text.isEmpty()) {
+				noteList.setTitle("Search");
+				noteEditor.clearSearchHighlights();
+				return;
+			}
+
+			// Limit search to current note by adding 'path:<note.file().getAbsolutePath()' search term, which
+			// is unique to each note.
+			Set<Note> selected = noteList.getSelection();
+			if (selected.size() == 1) {
+				Note n = selected.iterator().next();
+				if (n != null) {
+					try {
+						String path = URLEncoder.encode(n.file().getAbsolutePath(), "UTF-8");
+						text = "path:" + path + " " + text;
+					} catch (UnsupportedEncodingException e) {
+					}
+				}
+			}
+
+			Notebook nb = Search.search(text);
+			if (nb.count() > 0) {
+				showNotebook(nb);
+
+				int count = noteEditor.getHighlightCount();
+				if (count == 1) {
+					noteList.setTitle("1 match");
+				} else {
+					noteList.setTitle("1 of " + count + " matches");
+				}
+
+				EventQueue.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						noteEditor.resetHighlightPosition();
+						noteEditor.changeHighlight(1);
+					}
+				});
+			} else {
+				noteList.setTitle("no matches");
+			}
+
+			return;
+		}
+
+		//
+		// Toolbar.SearchModes.allNotes
+		//
+
 		if (previousSearchText.length() == 0 && text.length() > 0) {
 			history.setMark();
 		}
@@ -1543,6 +1651,7 @@ public class ElephantWindow extends JFrame {
 
 		edit.addSeparator();
 		edit.add(menuItem("Search Notes...", KeyEvent.VK_F, menuMask | KeyEvent.ALT_DOWN_MASK, searchAction));
+		edit.add(menuItem("Search Current Note", KeyEvent.VK_F, menuMask, searchCurrentNoteAction));
 		iSaveSearch = menuItem("Save Search to Shortcuts", 0, 0, addSearchToShortcutsAction);
 		iSaveSearch.setEnabled(false);
 		edit.add(iSaveSearch);

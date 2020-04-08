@@ -21,7 +21,7 @@ public class Search {
 	}
 
 	public static Object lockObject = new Object();
-	
+
 	synchronized public static Notebook search(String text) {
 		text = text.toLowerCase();
 
@@ -64,20 +64,23 @@ public class Search {
 		List<Set<Note>> negativeSets = Factory.newArrayList();
 
 		/*
-		 * List<String> keys = new ArrayList<String>(); Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(text);
-		 * while (m.find()) { keys.add(m.group(1).replace("\"", "")); }
+		 * List<String> keys = new ArrayList<String>(); Matcher m =
+		 * Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(text); while (m.find()) {
+		 * keys.add(m.group(1).replace("\"", "")); }
 		 */
 
 		String[] a = text.split(" ");
 		for (String q : a) {
 			q = q.trim();
-			Set<Note> notes = Factory.newHashSet();
-			if (q.charAt(0) != '!') {
-				notes.addAll(ssi.search(q));
-				sets.add(notes);
-			} else {
-				notes.addAll(ssi.search(q.substring(1)));
-				negativeSets.add(notes);
+			if (!q.isEmpty()) {
+				Set<Note> notes = Factory.newHashSet();
+				if (q.charAt(0) != '!') {
+					notes.addAll(ssi.search(q));
+					sets.add(notes);
+				} else {
+					notes.addAll(ssi.search(q.substring(1)));
+					negativeSets.add(notes);
+				}
 			}
 		}
 
@@ -98,7 +101,7 @@ public class Search {
 			for (Set<Note> negatives : negativeSets) {
 				smallest.removeAll(negatives);
 			}
-			
+
 			for (Note n : smallest) {
 				found.addNote(n);
 			}

@@ -5,6 +5,8 @@ import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.FlowLayout;
 import java.awt.Image;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -29,6 +31,7 @@ public class Toolbar extends BackgroundPanel {
 
 	SearchTextField search;
 	private static final String searchNotes = "Search notes";
+	private static final String searchCurrentNote = "Search current note";
 
 	private static boolean skipNextFocusLost = false;
 	private boolean isIndexing = false;
@@ -38,6 +41,12 @@ public class Toolbar extends BackgroundPanel {
 		toolbarBg = i.next();
 		toolbarBgInactive = i.next();
 	}
+
+	enum SearchModes {
+		allNotes, currentNote
+	};
+
+	public SearchModes searchMode = SearchModes.allNotes;
 
 	public Toolbar(ElephantWindow w) {
 		super(toolbarBg);
@@ -119,6 +128,26 @@ public class Toolbar extends BackgroundPanel {
 				doSearch(search.getText());
 			}
 		});
+
+		search.addKeyListener(new KeyListener() {
+			@Override
+			public void keyTyped(KeyEvent e) {
+			}
+
+			@Override
+			public void keyPressed(KeyEvent e) {
+				if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+					if (searchMode == SearchModes.currentNote) {
+						setSearchMode(SearchModes.allNotes);
+					}
+				}
+			}
+
+			@Override
+			public void keyReleased(KeyEvent e) {
+			}
+		});
+
 	}
 
 	public void focusGained() {
@@ -171,6 +200,21 @@ public class Toolbar extends BackgroundPanel {
 			search.setHintText(ProgressBars.getCharacterBar((int) event.progress));
 		} else {
 			search.setHintText(searchNotes);
+		}
+	}
+
+	public void setSearchMode(SearchModes m) {
+		searchMode = m;
+		switch (searchMode) {
+		case allNotes:
+			search.setHintText(searchNotes);
+			break;
+		case currentNote:
+			search.setHintText(searchCurrentNote);
+			break;
+		default:
+			break;
+
 		}
 	}
 }
