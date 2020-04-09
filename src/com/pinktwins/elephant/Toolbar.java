@@ -43,7 +43,7 @@ public class Toolbar extends BackgroundPanel {
 	}
 
 	enum SearchModes {
-		allNotes, currentNote
+		allNotes, currentNote, bypass
 	};
 
 	public SearchModes searchMode = SearchModes.allNotes;
@@ -93,6 +93,15 @@ public class Toolbar extends BackgroundPanel {
 					EventQueue.invokeLater(new Runnable() {
 						@Override
 						public void run() {
+							// XXX: should remove 'bypass' state. Should not call search
+							// on empty search string just to change ui state, should do that
+							// with explicit calls.
+
+							if (searchMode == SearchModes.bypass) {
+								setSearchMode(SearchModes.allNotes);
+								return;
+							}
+
 							if (search.isFocusable()) {
 								window.search(text);
 							}
@@ -139,6 +148,7 @@ public class Toolbar extends BackgroundPanel {
 				if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 					if (searchMode == SearchModes.currentNote) {
 						setSearchMode(SearchModes.allNotes);
+						setSearchMode(SearchModes.bypass);
 					}
 				}
 			}

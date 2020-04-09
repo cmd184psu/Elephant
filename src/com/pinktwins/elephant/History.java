@@ -110,7 +110,7 @@ public class History {
 		}
 	}
 
-	private void showIndex(final boolean shouldClearSearch) {
+	public void showIndex(final boolean shouldClearSearch) {
 		HistoryItem i = items.get(index);
 
 		preventAdd = true;

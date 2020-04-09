@@ -256,6 +256,9 @@ public class ElephantWindow extends JFrame {
 				if (it.hasNext()) {
 					Note n = it.next();
 					if (n != null) {
+						// history.addSearch(toolBar.search.getText());
+						history.add(n);
+
 						Notebook nb = new Notebook();
 						nb.setName(Notebook.NAME_SEARCH);
 						nb.setToSearchResultNotebook();
@@ -1140,7 +1143,18 @@ public class ElephantWindow extends JFrame {
 							// ESC will unfocus note editor.
 							if (noteEditor.hasFocus()) {
 								noteEditor.stopEditing();
+							} else {
+								if (toolBar.isEditing()) {
+									if (toolBar.searchMode == Toolbar.SearchModes.currentNote || toolBar.searchMode == Toolbar.SearchModes.bypass) {
+
+										noteEditor.clearSearchHighlights();
+										if (history.size() > 0) {
+											history.showIndex(false);
+										}
+									}
+								}
 							}
+
 							break;
 						}
 						break;
@@ -1444,6 +1458,9 @@ public class ElephantWindow extends JFrame {
 	}
 
 	public void search(String text) {
+		// XXX: should break the ui-state-changing parts outta here to make it more clear
+		// when and how ui states change.
+		
 		if (toolBar.searchMode == Toolbar.SearchModes.currentNote) {
 			if (text.isEmpty()) {
 				noteList.setTitle("Search");
