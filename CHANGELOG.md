@@ -1,5 +1,8 @@
 # Changelog
 
+##62
+- Added Edit -> Search Current Note (CMD-F) to search only from current note. Use arrow keys up and down to browse matches within the note.
+
 ##61
 - Note thumbs are scaled respecting aspect ratio on Snippet View
 - Note thumbs now use Retina resolution
