@@ -135,7 +135,7 @@ public class Sync {
 			}
 
 			File[] vaultFiles = fVaultFolder.listFiles();
-			File[] dropboxFiles = fVaultFolder.listFiles();
+			File[] dropboxFiles = fDropboxFolder.listFiles();
 			File[] allFiles = ArrayUtils.addAll(vaultFiles, dropboxFiles);
 
 			HashSet<String> uniqueNames = new HashSet<String>();
