@@ -139,6 +139,8 @@ public abstract class ToolbarList<T extends Component & ToolbarList.ToolbarListI
 
 	protected abstract List<T> queryFilter(String text);
 
+	protected void afterUpdate() {};
+
 	protected abstract void newButtonAction();
 
 	protected abstract void trashButtonAction();
@@ -161,6 +163,8 @@ public abstract class ToolbarList<T extends Component & ToolbarList.ToolbarListI
 			main.add(item);
 			itemList.add(item);
 		}
+		
+		afterUpdate();
 	}
 
 	protected void layoutItems() {

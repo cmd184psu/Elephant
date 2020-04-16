@@ -26,6 +26,7 @@ import javax.swing.WindowConstants;
 import org.apache.commons.lang3.SystemUtils;
 
 import com.pinktwins.elephant.data.Settings;
+import com.pinktwins.elephant.data.Sync;
 import com.pinktwins.elephant.data.Settings.Keys;
 import com.pinktwins.elephant.eventbus.FontChangedEvent;
 import com.pinktwins.elephant.util.Factory;
@@ -115,38 +116,7 @@ public class SettingsUI extends BackgroundPanel {
 				add(tf);
 				break;
 			case Boolean:
-				final JToggleButton yes = new JToggleButton("Yes");
-				final JToggleButton no = new JToggleButton("No");
-
-				if (Elephant.settings.getBoolean(key)) {
-					yes.setSelected(true);
-					no.setSelected(false);
-				} else {
-					yes.setSelected(false);
-					no.setSelected(true);
-				}
-
-				yes.addActionListener(new ActionListener() {
-					@Override
-					public void actionPerformed(ActionEvent e) {
-						Elephant.settings.set(key, true);
-						yes.setSelected(true);
-						no.setSelected(false);
-					}
-				});
-
-				no.addActionListener(new ActionListener() {
-
-					@Override
-					public void actionPerformed(ActionEvent e) {
-						Elephant.settings.set(key, false);
-						yes.setSelected(false);
-						no.setSelected(true);
-					}
-				});
-
-				add(yes);
-				add(no);
+				addBoolean(key, null, null);
 				break;
 			case Float:
 				final JTextField fe = new JTextField();
@@ -260,6 +230,34 @@ public class SettingsUI extends BackgroundPanel {
 
 				break;
 
+			case Sync:
+				JPanel p = new JPanel(new BorderLayout());
+				p.setVisible(Elephant.settings.getBoolean(key));
+
+				addBoolean(key, new ActionListener() {
+
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						// Yes
+						p.setVisible(true);
+					}}, new ActionListener() {
+
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						// No
+						p.setVisible(false);
+					}});
+
+				p.setAlignmentX(0);
+				p.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+
+				JLabel db = new JLabel();
+				db.setText("<html>" + Sync.getSettingsHelpText() + "</html>");
+
+				p.add(db);
+				add(p);
+				break;
+
 			default:
 				break;
 
@@ -271,6 +269,47 @@ public class SettingsUI extends BackgroundPanel {
 			add(f2);
 
 			setBorder(BorderFactory.createMatteBorder(4, 0, 4, 0, Color.decode("#dddddd")));
+		}
+
+		private void addBoolean(Keys key2, ActionListener yesAction, ActionListener noAction) {
+			final JToggleButton yes = new JToggleButton("Yes");
+			final JToggleButton no = new JToggleButton("No");
+
+			if (Elephant.settings.getBoolean(key)) {
+				yes.setSelected(true);
+				no.setSelected(false);
+			} else {
+				yes.setSelected(false);
+				no.setSelected(true);
+			}
+
+			yes.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					Elephant.settings.set(key, true);
+					yes.setSelected(true);
+					no.setSelected(false);
+					if (yesAction != null) {
+						yesAction.actionPerformed(e);
+					}
+				}
+			});
+
+			no.addActionListener(new ActionListener() {
+
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					Elephant.settings.set(key, false);
+					yes.setSelected(false);
+					no.setSelected(true);
+					if (noAction != null) {
+						noAction.actionPerformed(e);
+					}
+				}
+			});
+
+			add(yes);
+			add(no);
 		}
 
 		private JPanel addFontButton(final Keys fontKey, final String defaultFontName, final String buttonName, final FontSetter fontSetter) {

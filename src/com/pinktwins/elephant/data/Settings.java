@@ -3,8 +3,10 @@ package com.pinktwins.elephant.data;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.HashSet;
 import java.util.logging.Logger;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -24,7 +26,9 @@ public class Settings {
 								"showSidebar"), DEFAULT_FILETYPE("defaultFiletype"), CHARSET("charset"), INLINE_PREVIEW("inlinePreview"), SORT_BY(
 										"sortBy"), SORT_RECENT_FIRST("sortRecentFirst"), MARKDOWN_STYLES("markdownStyles"), FONTS("fonts"), FONT_EDITOR(
 												"fontEditor"), FONT_EDITORTITLE("fontEditorTitle"), FONT_CARDNAME("fontCardName"), FONT_SNIPPETNAME(
-														"fontSnippetName"), FONT_CARDPREVIEW("fontCardPreview"), FONT_SNIPPETPREVIEW("fontSnippetPreview"), MARKDOWN_FULLPICTUREPATH("markdownFullPicturePath"), WORDWRAP("wordWrap");
+														"fontSnippetName"), FONT_CARDPREVIEW("fontCardPreview"), FONT_SNIPPETPREVIEW(
+																"fontSnippetPreview"), MARKDOWN_FULLPICTUREPATH("markdownFullPicturePath"), WORDWRAP(
+																		"wordWrap"), SYNC("sync"), SYNC_SELECTION("syncSelection");
 
 		private final String str;
 
@@ -63,6 +67,8 @@ public class Settings {
 				return "Fonts";
 			case MARKDOWN_FULLPICTUREPATH:
 				return "Markdown: use full path for pictures";
+			case SYNC:
+				return "Selective Sync";
 			default:
 				return "";
 			}
@@ -94,6 +100,8 @@ public class Settings {
 				return "Fonts used in Elephant.";
 			case MARKDOWN_FULLPICTUREPATH:
 				return "Use full path for markdown pictures, as in: 'noteFilename.attachments/picture.jpg'. This might be required to support external markdown editors. This is a beta feature, is off by default, and filename without path is used.";
+			case SYNC:
+				return "Sync selected notebooks with the Elephant mobile app, using Dropbox.";
 			default:
 				return "";
 			}
@@ -119,11 +127,13 @@ public class Settings {
 		}
 
 		public static enum Kinds {
-			String, Boolean, Float, Fonts, Other
+			String, Boolean, Float, Fonts, Sync, Other
 		};
 
 		public Kinds getKind() {
 			switch (this) {
+			case SYNC:
+				return Kinds.Sync;
 			case ALLOW_FILENAMECHARS:
 				return Kinds.String;
 			case AUTOBULLET:
@@ -155,8 +165,9 @@ public class Settings {
 
 	};
 
-	public static Keys[] uiKeys = { Keys.FONTS, Keys.ALLOW_FILENAMECHARS, Keys.AUTOBULLET, Keys.CHARSET, Keys.CONFIRM_DELETE_FROM_TRASH, Keys.DEFAULT_FILETYPE,
-			Keys.DEFAULT_NOTEBOOK, Keys.FONT_SCALE, Keys.INLINE_PREVIEW, Keys.MARKDOWN_STYLES, Keys.PASTE_PLAINTEXT, Keys.MARKDOWN_FULLPICTUREPATH };
+	public static Keys[] uiKeys = { Keys.SYNC, Keys.FONTS, Keys.ALLOW_FILENAMECHARS, Keys.AUTOBULLET, Keys.CHARSET, Keys.CONFIRM_DELETE_FROM_TRASH,
+			Keys.DEFAULT_FILETYPE, Keys.DEFAULT_NOTEBOOK, Keys.FONT_SCALE, Keys.INLINE_PREVIEW, Keys.MARKDOWN_STYLES, Keys.PASTE_PLAINTEXT,
+			Keys.MARKDOWN_FULLPICTUREPATH };
 
 	public static enum SortBy {
 		TITLE, CREATED, UPDATED
@@ -436,18 +447,61 @@ public class Settings {
 	public void setSortMostRecent(boolean b) {
 		set(Keys.SORT_RECENT_FIRST, b);
 	}
-	
+
 	public boolean getMarkdownFullPicturePath() {
 		if (!has(Keys.MARKDOWN_FULLPICTUREPATH)) {
 			return false;
 		}
 		return getBoolean(Keys.MARKDOWN_FULLPICTUREPATH);
 	}
-	
+
 	public boolean getWordWrap() {
 		if (!has(Keys.WORDWRAP)) {
 			return true;
 		}
 		return getBoolean(Keys.WORDWRAP);
 	}
+
+	public HashSet<String> getSyncSelection() {
+		HashSet<String> set = new HashSet<String>();
+		String selection = getString(Keys.SYNC_SELECTION);
+		if (selection == null || selection.isEmpty()) {
+			return set;
+		}
+
+		try {
+			JSONArray a = new JSONArray(selection);
+			for (int n = 0; n < a.length(); n++) {
+				String s = a.getString(n);
+				set.add(s);
+			}
+			return set;
+		} catch (JSONException e) {
+			LOG.severe("Fail, cannot parse 'syncSelection' in settings file: '" + selection + "'");
+		}
+		return set;
+	}
+
+	public void setSyncSelection(String notebookName, boolean shouldSync) {
+		HashSet<String> selection = getSyncSelection();
+		if (selection.contains(notebookName) != shouldSync) {
+			if (shouldSync) {
+				selection.add(notebookName);
+			} else {
+				selection.remove(notebookName);
+			}
+			setSyncSelection(selection);
+		}
+	}
+
+	private void setSyncSelection(HashSet<String> selection) {
+		JSONArray a = new JSONArray();
+		for(String s : selection) {
+			a.put(s);
+		}
+		String arrayString = a.toString();
+		set(Settings.Keys.SYNC_SELECTION, arrayString);
+	}
+	
+	
 }

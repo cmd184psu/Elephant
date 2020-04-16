@@ -135,7 +135,7 @@ public class Notebook implements Comparable<Notebook> {
 		return nb;
 	}
 
-	private boolean isNoteExtension(String ext) {
+	public static boolean isNoteExtension(String ext) {
 		for (String s : POPULATE_EXTENSIONS) {
 			if (s.equalsIgnoreCase(ext)) {
 				return true;

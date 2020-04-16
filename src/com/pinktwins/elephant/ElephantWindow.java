@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBoxMenuItem;
@@ -59,6 +60,7 @@ import com.pinktwins.elephant.data.Search;
 import com.pinktwins.elephant.data.Settings;
 import com.pinktwins.elephant.data.Settings.Keys;
 import com.pinktwins.elephant.data.Settings.SortBy;
+import com.pinktwins.elephant.data.Sync;
 import com.pinktwins.elephant.data.Vault;
 import com.pinktwins.elephant.eventbus.FontChangedEvent;
 import com.pinktwins.elephant.eventbus.NoteChangedEvent;
@@ -73,6 +75,8 @@ import com.pinktwins.elephant.util.LaunchUtil;
 import com.pinktwins.elephant.util.ScreenUtil;
 
 public class ElephantWindow extends JFrame {
+
+	private static final Logger LOG = Logger.getLogger(ElephantWindow.class.getName());
 
 	public static Font fontStart = Font.decode("Arial-ITALIC-18");
 	public static Font fontTitle = Font.decode("Helvetica-BOLD-18");
@@ -223,6 +227,26 @@ public class ElephantWindow extends JFrame {
 			// Previously, save by unfocusing editor:
 			// noteEditor.focusEditor();
 			// unfocusEditor();
+		}
+	};
+
+	ActionListener syncAction = new ActionListener() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			if (!Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
+				settingsAction.actionPerformed(e);
+				JOptionPane.showMessageDialog(null, "Sync is currently off.", "Sync", JOptionPane.PLAIN_MESSAGE);
+				return;
+			}
+			try {
+				Sync.SyncResult r = Sync.run();
+				if (r != null) {
+					showToast(r.inSync + " notes in sync, " + r.numCopied + " copied.");
+				}
+			} catch (IOException ex) {
+				LOG.severe("Failed on sync: " + ex);
+				ex.printStackTrace();
+			}
 		}
 	};
 
@@ -1353,6 +1377,7 @@ public class ElephantWindow extends JFrame {
 	}
 
 	public void showNotebooks() {
+		notebooks.setSyncVisible(Elephant.settings.getBoolean(Settings.Keys.SYNC));
 		splitLeft.setRightComponent(notebooks);
 		splitLeft.setDividerColor(CustomSplitPane.DividerColor.COLOR2);
 		uiMode = UiModes.notebooks;
@@ -1460,7 +1485,7 @@ public class ElephantWindow extends JFrame {
 	public void search(String text) {
 		// XXX: should break the ui-state-changing parts outta here to make it more clear
 		// when and how ui states change.
-		
+
 		if (toolBar.searchMode == Toolbar.SearchModes.currentNote) {
 			if (text.isEmpty()) {
 				noteList.setTitle("Search");
@@ -1637,6 +1662,8 @@ public class ElephantWindow extends JFrame {
 		file.addSeparator();
 		file.add(menuItem("Close", KeyEvent.VK_W, menuMask, closeWindowAction));
 		file.add(menuItem("Save", KeyEvent.VK_S, menuMask, saveNoteAction));
+		file.addSeparator();
+		file.add(menuItem("Sync...", KeyEvent.VK_S, menuMask | KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK, syncAction));
 		file.addSeparator();
 		file.add(menuItem("Preferences...", KeyEvent.VK_COMMA, menuMask, settingsAction));
 

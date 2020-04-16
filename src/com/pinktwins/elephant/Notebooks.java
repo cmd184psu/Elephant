@@ -2,10 +2,12 @@ package com.pinktwins.elephant;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -17,9 +19,11 @@ import javax.swing.SwingConstants;
 
 import com.google.common.eventbus.Subscribe;
 import com.pinktwins.elephant.data.Notebook;
+import com.pinktwins.elephant.data.Settings;
 import com.pinktwins.elephant.data.Vault;
 import com.pinktwins.elephant.eventbus.NotebookEvent;
 import com.pinktwins.elephant.eventbus.VaultEvent;
+import com.pinktwins.elephant.util.CustomMouseListener;
 import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.Images;
 
@@ -30,6 +34,9 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 	private static Image tile, notebookBg, notebookBgSelected, newNotebook;
 	private ElephantWindow window;
 	private NotebookActionListener naListener;
+
+	private static final Font shouldSyncFontOff = Font.decode("Arial-10");
+	private static final Font shouldSyncFontOn = Font.decode("Arial-BOLD-16");
 
 	static {
 		Iterator<Image> i = Images.iterator(new String[] { "notebooks", "notebookBg", "notebookBgSelected", "newNotebook" });
@@ -87,6 +94,11 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 		}
 
 		return items;
+	}
+
+	@Override
+	protected void afterUpdate() {
+		setSyncVisible(Elephant.settings.getBoolean(Settings.Keys.SYNC));
 	}
 
 	public void openSelected() {
@@ -172,7 +184,13 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 		private Notebook notebook;
 		private Dimension size = new Dimension(252, 51);
 		private JLabel name;
+		private JLabel sync;
 		private JLabel count;
+
+		private boolean shouldSync = false;
+		private static final String shouldSyncOn = "<html>&#8651</html>";
+		private static final String shouldSyncOff = "<html>&#8644;</html>";
+		private Color shouldSyncColor = Color.decode("#47639f");
 
 		public NotebookItem(Notebook nb) {
 			super(notebookBg);
@@ -186,15 +204,30 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 			name.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 0));
 			name.setForeground(Color.DARK_GRAY);
 
+			sync = new JLabel(shouldSyncOff, SwingConstants.CENTER);
+			sync.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 16));
+			sync.setForeground(Color.DARK_GRAY);
+			sync.setFont(ElephantWindow.fontMedium);
+			sync.setVisible(false);
+			sync.addMouseListener(new CustomMouseListener() {
+				@Override
+				public void mouseClicked(MouseEvent e) {
+					setSyncVisible(true, !shouldSync);
+					Elephant.settings.setSyncSelection(nb.name(), shouldSync);
+				}
+			});
+
 			count = new JLabel(String.valueOf(nb.count()), SwingConstants.CENTER);
 			count.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 16));
 			count.setForeground(Color.DARK_GRAY);
 			count.setFont(ElephantWindow.fontMedium);
 
 			add(name);
+			add(sync);
 			add(count);
 
 			name.setBounds(0, 0, 200, 51);
+			sync.setBounds(180, 0, 30, 51);
 			count.setBounds(202, 0, 60, 51);
 
 			addMouseListener(this);
@@ -213,6 +246,14 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 				setImage(notebookBg);
 			}
 			repaint();
+		}
+
+		public void setSyncVisible(boolean b, boolean shouldSync) {
+			this.shouldSync = shouldSync;
+			sync.setForeground(shouldSync ? shouldSyncColor : Color.DARK_GRAY);
+			sync.setText(shouldSync ? shouldSyncOn : shouldSyncOff);
+			sync.setFont(shouldSync ? shouldSyncFontOn : shouldSyncFontOff);
+			sync.setVisible(b);
 		}
 
 		@Override
@@ -260,6 +301,13 @@ public class Notebooks extends ToolbarList<Notebooks.NotebookItem> {
 
 		@Override
 		public void mouseExited(MouseEvent e) {
+		}
+	}
+
+	public void setSyncVisible(boolean b) {
+		HashSet<String> syncSelection = Elephant.settings.getSyncSelection();
+		for (NotebookItem item : itemList) {
+			item.setSyncVisible(b, syncSelection.contains(item.getNotebook().name()));
 		}
 	}
 }
