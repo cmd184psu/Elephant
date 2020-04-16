@@ -508,7 +508,14 @@ public class Note implements Comparable<Note> {
 
 		if (destExists) {
 			try {
-				attemptSafeRename(file.getName());
+				File oldFile = file;
+				File oldMeta = meta;
+				File newFilename = attemptSafeRename(file.getName());
+
+				if (Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
+					Sync.onNoteRename(oldFile, oldMeta, newFilename);
+				}
+
 				moveTo(dest);
 				return;
 			} catch (IOException e) {
@@ -544,6 +551,10 @@ public class Note implements Comparable<Note> {
 						return null;
 					}
 				}).execute();
+			}
+
+			if (Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
+				Sync.onNoteMove(file, meta, dest);
 			}
 
 			new NotebookEvent(NotebookEvent.Kind.noteMoved, file, destFile).post();
@@ -623,7 +634,7 @@ public class Note implements Comparable<Note> {
 		while (dest.exists()) {
 			String name = FilenameUtils.getName(orgDest);
 			String ext = "." + FilenameUtils.getExtension(name);
-			String newName = name.replace(ext,  " " + n + ext);
+			String newName = name.replace(ext, " " + n + ext);
 			dest = new File(orgDest.replace(name, newName));
 			n++;
 		}
@@ -669,7 +680,7 @@ public class Note implements Comparable<Note> {
 
 		return f;
 	}
-	
+
 	private File[] getAttachmentFiles() {
 		File f = new File(attachmentFolderPath(file));
 		if (f.exists()) {

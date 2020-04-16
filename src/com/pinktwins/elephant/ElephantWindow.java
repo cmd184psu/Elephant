@@ -241,7 +241,11 @@ public class ElephantWindow extends JFrame {
 			try {
 				Sync.SyncResult r = Sync.run();
 				if (r != null) {
-					showToast(r.inSync + " notes in sync, " + r.numCopied + " copied.");
+					if (r.info != null && !r.info.isEmpty()) {
+						JOptionPane.showMessageDialog(null, r.info, "Sync", JOptionPane.PLAIN_MESSAGE);
+					} else {
+						showToast(r.inSync + " notes in sync, " + r.numCopied + " copied.");
+					}
 				}
 			} catch (IOException ex) {
 				LOG.severe("Failed on sync: " + ex);

@@ -88,30 +88,37 @@ public class Sync {
 
 	public static class SyncResult {
 		public int inSync, numCopied;
+		public String info;
 	}
 
 	public static SyncResult run() throws IOException {
+		SyncResult r = new SyncResult();
+
 		String dbPath = getDropboxFolder();
 		String dbHome = dbPath + File.separator + "Apps" + File.separator + "Elephant";
 		if (dbPath.isEmpty()) {
-			LOG.severe("Sync: could not locate your Dropbox folder.");
-			return null;
+			r.info = "Sync: could not locate your Dropbox folder.";
+			LOG.severe(r.info);
+			return r;
 		}
 
 		if (isVaultAtDropboxAppsElephant()) {
-			LOG.info("Your note folder is under Dropbox. No syncing needed.");
-			return null;
+			r.info = "Your note folder is under Dropbox. No syncing needed by Elephant.";
+			LOG.severe(r.info);
+			return r;
 		}
 
 		if (!Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
-			LOG.info("Sync is currently disabled. Doing nothing");
-			return null;
+			r.info = "Sync is currently disabled. Doing nothing";
+			LOG.severe(r.info);
+			return r;
 		}
 
 		HashSet<String> notebooks = Elephant.settings.getSyncSelection();
 		if (notebooks.isEmpty()) {
-			LOG.info("No notebooks selected for syncing.");
-			return null;
+			r.info = "No notebooks selected for syncing. Go to View -> Notebooks to select synced notebooks.";
+			LOG.severe(r.info);
+			return r;
 		}
 
 		// Sync each notebook
@@ -265,7 +272,6 @@ public class Sync {
 			}
 		}
 
-		SyncResult r = new SyncResult();
 		r.inSync = inSync;
 		r.numCopied = numCopied;
 		return r;
@@ -276,6 +282,92 @@ public class Sync {
 		String metaPath = home.getAbsolutePath() + File.separator + ".meta" + File.separator + notebook.getName() + "_" + note.getName();
 		File m = new File(metaPath);
 		return m;
+	}
+
+	private static String dbHome() {
+		String dbPath = getDropboxFolder();
+		String dbHome = dbPath + File.separator + "Apps" + File.separator + "Elephant";
+		return dbHome;
+	}
+
+	private static boolean noSync() {
+		String dbPath = getDropboxFolder();
+		return dbPath.isEmpty() || isVaultAtDropboxAppsElephant() || !Elephant.settings.getBoolean(Settings.Keys.SYNC);
+	}
+
+	public static void onNoteRename(File noteFile, File metaFile, File newFilename) {
+		if (noSync()) {
+			return;
+		}
+
+		File sourceNote = new File(dbHome() + File.separator + noteFile.getParentFile().getName() + File.separator + noteFile.getName());
+		File sourceMeta = new File(dbHome() + File.separator + ".meta" + File.separator + noteFile.getParentFile().getName() + "_" + noteFile.getName());
+		File sourceAttachments = new File(sourceNote.getAbsolutePath() + ".attachments");
+
+		File destNote = new File(sourceNote.getParentFile().getAbsolutePath() + File.separator + newFilename.getName());
+		File destMeta = new File(
+				sourceMeta.getParentFile().getAbsolutePath() + File.separator + newFilename.getParentFile().getName() + "_" + newFilename.getName());
+		File destAttachments = new File(destNote.getAbsolutePath() + ".attachments");
+
+		System.out.println("onNoteRename()\nsourceNote: " + sourceNote + "\nsourceMeta: " + sourceMeta + "\nsourceAttachments: " + sourceAttachments);
+		System.out.println("destNote: " + destNote + "\ndestMeta: " + destMeta + "\ndestAttachments:" + destAttachments);
+
+		if (destNote.exists() || destMeta.exists() || destAttachments.exists()) {
+			LOG.severe("Failed syncing note renaming on Dropbox, target exists:\nNote file: " + destNote.getAbsolutePath() + "\nor meta file: "
+					+ destMeta.getAbsolutePath() + "\nor attachments: " + destAttachments.getAbsolutePath());
+			return;
+		}
+
+		try {
+			if (sourceNote.exists()) {
+				FileUtils.moveFile(sourceNote, destNote);
+			}
+			if (sourceMeta.exists()) {
+				FileUtils.moveFile(sourceMeta, destMeta);
+			}
+			if (sourceAttachments.exists()) {
+				FileUtils.moveFile(sourceAttachments, destAttachments);
+			}
+		} catch (IOException e) {
+			LOG.severe("Note was renamed but failed syncing the rename on Dropbox: " + noteFile.getAbsolutePath() + " -> " + newFilename.getName());
+		}
+	}
+
+	public static void onNoteMove(File noteFile, File metaFile, File destNotebook) {
+		if (noSync()) {
+			return;
+		}
+
+		File sourceNote = new File(dbHome() + File.separator + noteFile.getParentFile().getName() + File.separator + noteFile.getName());
+		File sourceMeta = new File(dbHome() + File.separator + ".meta" + File.separator + noteFile.getParentFile().getName() + "_" + noteFile.getName());
+		File sourceAttachments = new File(sourceNote.getAbsolutePath() + ".attachments");
+
+		File destNote = new File(dbHome() + File.separator + destNotebook.getName() + File.separator + noteFile.getName());
+		File destMeta = new File(dbHome() + File.separator + ".meta" + File.separator + destNotebook.getName() + "_" + noteFile.getName());
+		File destDropboxNotebook = new File(dbHome() + File.separator + destNotebook.getName());
+
+		if (destNote.exists() || destMeta.exists()) {
+			LOG.severe("Note was moved but failed syncing the move.\nTried moving note under Dropbox: " + sourceNote.getAbsolutePath() + "\nto notebook: "
+					+ destDropboxNotebook + "\nbut file already exists: " + destNote.getAbsolutePath() + "\nor: " + destMeta.getAbsolutePath());
+			return;
+		}
+
+		System.out.println("onNoteMove()\nsourceNote: " + sourceNote + "\nsourceMeta: " + sourceMeta + "\nsourceAttachments: " + sourceAttachments);
+		System.out.println("destNote: " + destNote + "\ndestMeta: " + destMeta + "\ndestDropboxNotebook:" + destDropboxNotebook);
+
+		try {
+			if (sourceNote.exists()) {
+				FileUtils.moveFile(sourceNote, destNote);
+			}
+			if (sourceMeta.exists()) {
+				FileUtils.moveFile(sourceMeta, destMeta);
+			}
+			if (sourceAttachments.exists()) {
+				FileUtils.moveDirectoryToDirectory(sourceAttachments, destDropboxNotebook, true);
+			}
+		} catch (IOException e) {
+			LOG.severe("Note was moved but failed syncing the move on Dropbox: " + e);
+		}
 	}
 
 }
