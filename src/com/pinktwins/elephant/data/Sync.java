@@ -147,6 +147,18 @@ public class Sync {
 				FileUtils.deleteQuietly(f);
 
 				String op = json.optString("op");
+				if (op.equals("newnotebook")) {
+					String name = json.optString("name");
+					// Strip any possible paths
+					name = new File(name).getName();
+					File nb = new File(Vault.getInstance().getHome() + File.separator + name);
+					nb.mkdirs();
+					new VaultEvent(VaultEvent.Kind.notebookCreated, new Notebook(nb)).post();
+					new VaultEvent(VaultEvent.Kind.notebookListChanged, new Notebook(nb)).post();
+					writeNewNotebookLog(nb.getAbsolutePath());
+					Elephant.settings.setSyncSelection(name, true);
+					notebooks = Elephant.settings.getSyncSelection();
+				}
 				if (op.equals("move")) {
 					String sourceNote = json.optString("sourceNote");
 					String destNote = json.optString("destNote");
@@ -535,6 +547,10 @@ public class Sync {
 		}
 
 		return hex(hasher.digest());
+	}
+
+	public static void writeNewNotebookLog(String name) {
+		writeLog(System.currentTimeMillis() + ",NEW," + name + "\n");
 	}
 
 	public static void writeDeleteLog(String note) {
