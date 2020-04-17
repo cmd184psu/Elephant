@@ -19,6 +19,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.pinktwins.elephant.Elephant;
+import com.pinktwins.elephant.eventbus.NotebookEvent;
+import com.pinktwins.elephant.eventbus.VaultEvent;
 import com.pinktwins.elephant.util.DropboxContentHasher;
 import com.pinktwins.elephant.util.IOUtil;
 
@@ -90,7 +92,8 @@ public class Sync {
 			return "Your note folder is under Dropbox. To sync only selected folders,<br/>move it out of Dropbox/Apps/Elephant:<br/><br/>1) Quit Elephant<br/>2) Move the note folder out of Dropbox<br/>3) Restart Elephant and give it the new note location.";
 		}
 
-		return "Syncing to " + dbPath + File.separator + "Apps" + File.separator + "Elephant<br/>Select synced notebooks from View -> Notebooks.<br/><br/>To sync all notebooks, just use Dropbox / Apps / Elephant<br/>as your note folder and leave this off.";
+		return "Syncing to " + dbPath + File.separator + "Apps" + File.separator
+				+ "Elephant<br/>Select synced notebooks from View -> Notebooks.<br/><br/>To sync all notebooks, just use Dropbox / Apps / Elephant<br/>as your note folder and leave this off.";
 	}
 
 	public static class SyncResult {
@@ -155,7 +158,7 @@ public class Sync {
 					sourceNote = sourceNote.replaceAll("/", File.separator);
 					sourceMeta = sourceMeta.replaceAll("/", File.separator);
 					destNote = destNote.replaceAll("/", File.separator);
-					destMeta = destMeta.replaceAll("/",  File.separator);
+					destMeta = destMeta.replaceAll("/", File.separator);
 
 					File sourceFile = new File(Vault.getInstance().getHome() + sourceNote);
 
@@ -198,6 +201,10 @@ public class Sync {
 								if (sourceAttachments.exists()) {
 									FileUtils.moveDirectoryToDirectory(eventSourceAttachments, eventDestAttachments, true);
 								}
+
+								new NotebookEvent(NotebookEvent.Kind.noteMoved, eventSourceNote, eventDestNote).post();
+								new VaultEvent(VaultEvent.Kind.notebookRefreshed, Note.findContainingNotebook(eventSourceNote)).post();
+								new VaultEvent(VaultEvent.Kind.notebookRefreshed, Note.findContainingNotebook(eventDestNote)).post();
 							} catch (IOException e) {
 								LOG.severe("Note was moved on Dropbox but failed syncing the move on note folder: " + e);
 							}
@@ -351,6 +358,10 @@ public class Sync {
 					}
 					r.numCopied++;
 					writeCopyLog(sourceNoteFile.getAbsolutePath(), destNoteFile.getAbsolutePath());
+
+					if (action == actions.updateDropboxToVault) {
+						new VaultEvent(VaultEvent.Kind.notebookRefreshed, Note.findContainingNotebook(destNoteFile)).post();
+					}
 					break;
 				default:
 					break;
