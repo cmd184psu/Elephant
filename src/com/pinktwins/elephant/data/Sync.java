@@ -1,7 +1,13 @@
 package com.pinktwins.elephant.data;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
 import java.util.HashSet;
 import java.util.logging.Logger;
 
@@ -13,6 +19,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.pinktwins.elephant.Elephant;
+import com.pinktwins.elephant.util.DropboxContentHasher;
 import com.pinktwins.elephant.util.IOUtil;
 
 public class Sync {
@@ -83,11 +90,11 @@ public class Sync {
 			return "Your note folder is under Dropbox. To sync only selected folders,<br/>move it out of Dropbox/Apps/Elephant:<br/><br/>1) Quit Elephant<br/>2) Move the note folder out of Dropbox<br/>3) Restart Elephant and give it the new note location.";
 		}
 
-		return "Syncing to " + dbPath + File.separator + "Apps" + File.separator + "Elephant<br/>Select synced notebooks from View -> Notebooks.";
+		return "Syncing to " + dbPath + File.separator + "Apps" + File.separator + "Elephant<br/>Select synced notebooks from View -> Notebooks.<br/><br/>To sync all notebooks, just use Dropbox / Apps / Elephant<br/>as your note folder and leave this off.";
 	}
 
 	public static class SyncResult {
-		public int inSync, numCopied;
+		public int inSync, numCopied, numMoved;
 		public String info;
 	}
 
@@ -121,9 +128,87 @@ public class Sync {
 			return r;
 		}
 
+		// Read and handle files from /.events/
+		// These are json files written by Elehant mobile to let us know
+		// a note was moved to another folder.
+		File eventsFolder = new File(dbHome + File.separator + ".events");
+		if (eventsFolder.exists()) {
+			File[] events = eventsFolder.listFiles(new FileFilter() {
+				@Override
+				public boolean accept(File f) {
+					return FilenameUtils.getExtension(f.getName()).equalsIgnoreCase("json");
+				}
+			});
+			for (File f : events) {
+				JSONObject json = IOUtil.loadJson(f);
+				FileUtils.deleteQuietly(f);
+
+				String op = json.optString("op");
+				if (op.equals("move")) {
+					String sourceNote = json.optString("sourceNote");
+					String destNote = json.optString("destNote");
+					String sourceMeta = json.optString("sourceMeta");
+					String destMeta = json.optString("destMeta");
+					String contentHash = json.optString("contentHash");
+					String autorenamed = json.optString("autorenamed");
+
+					sourceNote = sourceNote.replaceAll("/", File.separator);
+					sourceMeta = sourceMeta.replaceAll("/", File.separator);
+					destNote = destNote.replaceAll("/", File.separator);
+					destMeta = destMeta.replaceAll("/",  File.separator);
+
+					File sourceFile = new File(Vault.getInstance().getHome() + sourceNote);
+
+					// Verify content hash
+					if (sourceFile.exists()) {
+						String hash = getDropboxContentHash(sourceFile);
+						if (hash.equals(contentHash)) {
+
+							// Source confirmed to be same note,
+							// Move on Vault same way as on Dropbox
+							File vHome = Vault.getInstance().getHome();
+							File eventSourceNote = new File(vHome + sourceNote);
+							File eventSourceMeta = new File(vHome + sourceMeta);
+							File sourceAttachments = new File(eventSourceNote.getAbsolutePath() + ".attachments");
+
+							File eventDestNote = new File(vHome + destNote);
+							if (!autorenamed.isEmpty()) {
+								eventDestNote = new File(eventDestNote.getParentFile().getAbsolutePath() + File.separator + autorenamed);
+							}
+
+							File eventDestMeta = new File(vHome + destMeta);
+
+							if (eventDestNote.exists() || eventDestMeta.exists()) {
+								LOG.severe("Skipped handling move event, destinations already exist: " + destNote + " or " + destMeta);
+								continue;
+							}
+
+							File eventSourceAttachments = new File(eventSourceNote.getAbsolutePath() + ".attachments");
+							File eventDestAttachments = new File(eventDestNote.getParentFile().getAbsolutePath());
+
+							try {
+								if (eventSourceNote.exists()) {
+									FileUtils.moveFile(eventSourceNote, eventDestNote);
+									r.numMoved++;
+									writeMoveLog(eventSourceNote.getAbsolutePath(), eventDestNote.getAbsolutePath());
+								}
+								if (eventSourceMeta.exists()) {
+									FileUtils.moveFile(eventSourceMeta, eventDestMeta);
+								}
+								if (sourceAttachments.exists()) {
+									FileUtils.moveDirectoryToDirectory(eventSourceAttachments, eventDestAttachments, true);
+								}
+							} catch (IOException e) {
+								LOG.severe("Note was moved on Dropbox but failed syncing the move on note folder: " + e);
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// Sync each notebook
 
-		int inSync = 0, numCopied = 0;
 		for (String notebook : notebooks) {
 
 			// Collect all unique filenames in Vault/notebook and Dropbox/notebook
@@ -188,7 +273,7 @@ public class Sync {
 				}
 
 				if (action != actions.none) {
-					System.out.println("Note " + noteFile + " action " + action.toString());
+					LOG.info("Sync: " + notebook + " / " + noteFile + " action " + action.toString());
 				}
 
 				// Set source and destinations
@@ -199,7 +284,7 @@ public class Sync {
 
 				switch (action) {
 				case none:
-					inSync++;
+					r.inSync++;
 					break;
 				case updateVaultToDropbox:
 					retainedFolder = new File(dbHome + File.separator + ".retained");
@@ -264,7 +349,8 @@ public class Sync {
 					if (sourceAttachments.exists()) {
 						FileUtils.copyDirectoryToDirectory(sourceAttachments, destAttachments);
 					}
-					numCopied++;
+					r.numCopied++;
+					writeCopyLog(sourceNoteFile.getAbsolutePath(), destNoteFile.getAbsolutePath());
 					break;
 				default:
 					break;
@@ -272,8 +358,6 @@ public class Sync {
 			}
 		}
 
-		r.inSync = inSync;
-		r.numCopied = numCopied;
 		return r;
 	}
 
@@ -295,8 +379,15 @@ public class Sync {
 		return dbPath.isEmpty() || isVaultAtDropboxAppsElephant() || !Elephant.settings.getBoolean(Settings.Keys.SYNC);
 	}
 
+	// When syncing is enabled and note is autorenamed on Vault (to avoid having files of same name),
+	// perform the renaming on Dropbox immediately as well.
 	public static void onNoteRename(File noteFile, File metaFile, File newFilename) {
 		if (noSync()) {
+			return;
+		}
+
+		String notebookName = noteFile.getParentFile().getName();
+		if (!Elephant.settings.getSyncSelection().contains(notebookName)) {
 			return;
 		}
 
@@ -309,9 +400,6 @@ public class Sync {
 				sourceMeta.getParentFile().getAbsolutePath() + File.separator + newFilename.getParentFile().getName() + "_" + newFilename.getName());
 		File destAttachments = new File(destNote.getAbsolutePath() + ".attachments");
 
-		System.out.println("onNoteRename()\nsourceNote: " + sourceNote + "\nsourceMeta: " + sourceMeta + "\nsourceAttachments: " + sourceAttachments);
-		System.out.println("destNote: " + destNote + "\ndestMeta: " + destMeta + "\ndestAttachments:" + destAttachments);
-
 		if (destNote.exists() || destMeta.exists() || destAttachments.exists()) {
 			LOG.severe("Failed syncing note renaming on Dropbox, target exists:\nNote file: " + destNote.getAbsolutePath() + "\nor meta file: "
 					+ destMeta.getAbsolutePath() + "\nor attachments: " + destAttachments.getAbsolutePath());
@@ -321,6 +409,7 @@ public class Sync {
 		try {
 			if (sourceNote.exists()) {
 				FileUtils.moveFile(sourceNote, destNote);
+				writeMoveLog(sourceNote.getAbsolutePath(), destNote.getAbsolutePath());
 			}
 			if (sourceMeta.exists()) {
 				FileUtils.moveFile(sourceMeta, destMeta);
@@ -333,10 +422,49 @@ public class Sync {
 		}
 	}
 
+	// When note is moved to another notebook, move note under Dropbox immediately as well.
 	public static void onNoteMove(File noteFile, File metaFile, File destNotebook) {
 		if (noSync()) {
 			return;
 		}
+
+		HashSet<String> syncedNotebooks = Elephant.settings.getSyncSelection();
+		boolean isSourceSynced = syncedNotebooks.contains(noteFile.getParentFile().getName());
+		boolean isDestSynced = syncedNotebooks.contains(destNotebook.getName());
+		isDestSynced = isDestSynced || destNotebook.getName().equalsIgnoreCase("Trash");
+
+		if (!isSourceSynced && !isDestSynced) {
+			// Neither notebook is synced, do nothing here
+			return;
+		}
+
+		if (isSourceSynced && !isDestSynced) {
+			// Source notebook is synced but dest isn't - remove note: Dropbox / source
+			File dbxNote = new File(dbHome() + File.separator + noteFile.getParentFile().getName() + File.separator + noteFile.getName());
+			File dbxMeta = new File(dbHome() + File.separator + ".meta" + File.separator + noteFile.getParentFile().getName() + "_" + noteFile.getName());
+			File dbxAttachments = new File(dbxNote.getAbsolutePath() + ".attachments");
+
+			if (dbxNote.exists()) {
+				FileUtils.deleteQuietly(dbxNote);
+				writeDeleteLog(dbxNote.getAbsolutePath());
+			}
+			if (dbxMeta.exists()) {
+				FileUtils.deleteQuietly(dbxMeta);
+			}
+			if (dbxAttachments.exists()) {
+				FileUtils.deleteQuietly(dbxAttachments);
+			}
+
+			return;
+		}
+
+		if (!isSourceSynced && isDestSynced) {
+			// Source notebook isn't synced but dest is:
+			// Next sync() will copy the note over, do nothing here
+			return;
+		}
+
+		// Both notebooks are synced:
 
 		File sourceNote = new File(dbHome() + File.separator + noteFile.getParentFile().getName() + File.separator + noteFile.getName());
 		File sourceMeta = new File(dbHome() + File.separator + ".meta" + File.separator + noteFile.getParentFile().getName() + "_" + noteFile.getName());
@@ -352,12 +480,10 @@ public class Sync {
 			return;
 		}
 
-		System.out.println("onNoteMove()\nsourceNote: " + sourceNote + "\nsourceMeta: " + sourceMeta + "\nsourceAttachments: " + sourceAttachments);
-		System.out.println("destNote: " + destNote + "\ndestMeta: " + destMeta + "\ndestDropboxNotebook:" + destDropboxNotebook);
-
 		try {
 			if (sourceNote.exists()) {
 				FileUtils.moveFile(sourceNote, destNote);
+				writeMoveLog(sourceNote.getAbsolutePath(), destNote.getAbsolutePath());
 			}
 			if (sourceMeta.exists()) {
 				FileUtils.moveFile(sourceMeta, destMeta);
@@ -370,4 +496,59 @@ public class Sync {
 		}
 	}
 
+	static final char[] HEX_DIGITS = new char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+	public static String hex(byte[] data) {
+		char[] buf = new char[2 * data.length];
+		int i = 0;
+		for (byte b : data) {
+			buf[i++] = HEX_DIGITS[(b & 0xf0) >>> 4];
+			buf[i++] = HEX_DIGITS[b & 0x0f];
+		}
+		return new String(buf);
+	}
+
+	public static String getDropboxContentHash(File f) throws IOException {
+		MessageDigest hasher = new DropboxContentHasher();
+		byte[] buf = new byte[1024];
+		InputStream in = new FileInputStream(f);
+		try {
+			while (true) {
+				int n = in.read(buf);
+				if (n < 0)
+					break; // EOF
+				hasher.update(buf, 0, n);
+			}
+		} finally {
+			in.close();
+		}
+
+		return hex(hasher.digest());
+	}
+
+	public static void writeDeleteLog(String note) {
+		writeLog(System.currentTimeMillis() + ",DEL," + note + "\n");
+	}
+
+	public static void writeCopyLog(String note, String destination) {
+		writeLog(System.currentTimeMillis() + ",COPY," + note + "," + destination + "\n");
+	}
+
+	public static void writeMoveLog(String note, String destination) {
+		writeLog(System.currentTimeMillis() + ",MOVE," + note + "," + destination + "\n");
+	}
+
+	public static void writeLog(String str) {
+		File f = new File(Vault.getInstance().getHome() + File.separator + ".synclog");
+		FileWriter fr;
+		try {
+			fr = new FileWriter(f, true);
+			BufferedWriter br = new BufferedWriter(fr);
+			br.write(str);
+			br.close();
+			fr.close();
+		} catch (IOException e) {
+			LOG.severe("Failed writing sync log: " + e);
+		}
+	}
 }

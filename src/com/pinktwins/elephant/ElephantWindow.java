@@ -244,7 +244,7 @@ public class ElephantWindow extends JFrame {
 					if (r.info != null && !r.info.isEmpty()) {
 						JOptionPane.showMessageDialog(null, r.info, "Sync", JOptionPane.PLAIN_MESSAGE);
 					} else {
-						showToast(r.inSync + " notes in sync, " + r.numCopied + " copied.");
+						showToast("Synced (" + r.numCopied + " copied, " + r.numMoved + " moved)");
 					}
 				}
 			} catch (IOException ex) {
