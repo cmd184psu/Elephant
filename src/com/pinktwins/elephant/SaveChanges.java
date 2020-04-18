@@ -16,6 +16,8 @@ import org.apache.commons.io.FilenameUtils;
 import com.pinktwins.elephant.CustomEditor.AttachmentInfo;
 import com.pinktwins.elephant.data.Note;
 import com.pinktwins.elephant.data.Notebook;
+import com.pinktwins.elephant.data.Settings;
+import com.pinktwins.elephant.data.Sync;
 import com.pinktwins.elephant.data.Vault;
 import com.pinktwins.elephant.eventbus.NoteChangedEvent;
 
@@ -53,7 +55,9 @@ public class SaveChanges {
 			boolean contentChanged = false;
 
 			File noteFileBeforeRename = currentNote.file();
+			File metaFileBeforeRename = currentNote.meta();
 			File renamedFile = null;
+			boolean didChangeFormatOnRename = false;
 
 			try {
 				// Title
@@ -72,12 +76,14 @@ public class SaveChanges {
 					if ((editor.isRichText && "txt".equals(ext)) || (!editor.isRichText && "rtf".equals(ext))) {
 						renamedFile = renameAccordingToFormat(currentNote, editor, editedTitle);
 						changed = true;
+						didChangeFormatOnRename = true;
 					}
 
 					// markdown -> make plain text
 					if (!editor.isMarkdown && "md".equals(ext)) {
 						renamedFile = renameAccordingToFormat(currentNote, editor, editedTitle);
 						changed = true;
+						didChangeFormatOnRename = true;
 					}
 				}
 
@@ -185,6 +191,12 @@ public class SaveChanges {
 					Notebook nb = currentNote.findContainingNotebook();
 					if (nb != null) {
 						nb.markNoteSavedTimestamp();
+					}
+				}
+
+				if (renamedFile != null && didChangeFormatOnRename) {
+					if (Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
+						Sync.onNoteRename(noteFileBeforeRename, metaFileBeforeRename, renamedFile);
 					}
 				}
 

@@ -238,6 +238,10 @@ public class Note implements Comparable<Note> {
 		return file;
 	}
 
+	public File meta() {
+		return meta;
+	}
+
 	public String name() {
 		return fileName;
 	}
