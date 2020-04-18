@@ -16,7 +16,7 @@ import com.pinktwins.elephant.data.Vault;
 
 public class Elephant {
 
-	public static final int VERSION = 62;
+	public static final int VERSION = 63;
 
 	private static final Logger LOG = Logger.getLogger(Elephant.class.getName());
 
