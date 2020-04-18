@@ -76,6 +76,13 @@ public class Sync {
 		return "";
 	}
 
+	public static boolean isDbHomeExists() {
+		String dbPath = getDropboxFolder();
+		String dbHome = dbPath + File.separator + "Apps" + File.separator + "Elephant";
+		File f = new File(dbHome);
+		return f.exists();
+	}
+	
 	public static boolean isVaultAtDropboxAppsElephant() {
 		String dbPath = getDropboxFolder();
 		String vaultPath = Vault.getInstance().getHome().getAbsolutePath();
@@ -114,6 +121,12 @@ public class Sync {
 
 		if (isVaultAtDropboxAppsElephant()) {
 			r.info = "Your note folder is under Dropbox. No syncing needed by Elephant.";
+			LOG.severe(r.info);
+			return r;
+		}
+
+		if (!isDbHomeExists()) {
+			r.info = "Dropbox/Apps/Elephant doesn't exist - Open the Elephant mobile app before syncing for first time.";
 			LOG.severe(r.info);
 			return r;
 		}
@@ -399,7 +412,7 @@ public class Sync {
 
 	private static boolean noSync() {
 		String dbPath = getDropboxFolder();
-		return dbPath.isEmpty() || isVaultAtDropboxAppsElephant() || !Elephant.settings.getBoolean(Settings.Keys.SYNC);
+		return dbPath.isEmpty() || isVaultAtDropboxAppsElephant() || !isDbHomeExists() || !Elephant.settings.getBoolean(Settings.Keys.SYNC);
 	}
 
 	// When syncing is enabled and note is autorenamed on Vault (to avoid having files of same name),

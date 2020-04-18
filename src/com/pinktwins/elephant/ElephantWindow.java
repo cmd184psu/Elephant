@@ -1667,7 +1667,7 @@ public class ElephantWindow extends JFrame {
 		file.add(menuItem("Close", KeyEvent.VK_W, menuMask, closeWindowAction));
 		file.add(menuItem("Save", KeyEvent.VK_S, menuMask, saveNoteAction));
 		file.addSeparator();
-		file.add(menuItem("Sync...", KeyEvent.VK_S, menuMask | KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK, syncAction));
+		file.add(menuItem("Sync", KeyEvent.VK_S, menuMask | KeyEvent.SHIFT_DOWN_MASK | KeyEvent.CTRL_DOWN_MASK | KeyEvent.ALT_DOWN_MASK, syncAction));
 		file.addSeparator();
 		file.add(menuItem("Preferences...", KeyEvent.VK_COMMA, menuMask, settingsAction));
 
