@@ -19,6 +19,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.pinktwins.elephant.Elephant;
+import com.pinktwins.elephant.ElephantWindow;
 import com.pinktwins.elephant.eventbus.NotebookEvent;
 import com.pinktwins.elephant.eventbus.VaultEvent;
 import com.pinktwins.elephant.util.DropboxContentHasher;
@@ -82,7 +83,7 @@ public class Sync {
 		File f = new File(dbHome);
 		return f.exists();
 	}
-	
+
 	public static boolean isVaultAtDropboxAppsElephant() {
 		String dbPath = getDropboxFolder();
 		String vaultPath = Vault.getInstance().getHome().getAbsolutePath();
@@ -104,12 +105,20 @@ public class Sync {
 	}
 
 	public static class SyncResult {
-		public int inSync, numCopied, numMoved;
+		public int inSync, numCopiedToVault, numCopiedToDropbox, numMoved;
 		public String info;
 	}
 
 	public static SyncResult run() throws IOException {
 		SyncResult r = new SyncResult();
+
+		Notebook synced = new Notebook();
+		synced.setToSearchResultNotebook();
+		synced.setName("Updated");
+
+		Notebook conflict = new Notebook();
+		conflict.setToSearchResultNotebook();
+		conflict.setName("Conflict");
 
 		String dbPath = getDropboxFolder();
 		String dbHome = dbPath + File.separator + "Apps" + File.separator + "Elephant";
@@ -353,6 +362,18 @@ public class Sync {
 					break;
 				case updateDropboxToVault:
 				case updateVaultToDropbox:
+					// Check synced timestamps to avoid conflicts when both notes were modified after last sync.
+					if (sourceNoteFile.exists() && destNoteFile.exists()) {
+						Note.Meta destNoteMeta = new Note(destNoteFile).getMeta();
+						long destSynced = destNoteMeta.synced();
+
+						if (destSynced > 0 && destSynced != destNoteFile.lastModified()) {
+							LOG.info("Note: " + sourceNoteFile.getAbsolutePath() + " was modified on both sides, skipping copy.");
+							conflict.addNote(new Note(vaultFile));
+							break;
+						}
+					}
+
 					// If synced note target exist, move current version to .retained folder.
 					// overwrite previously retained file if exists.
 					if (destNoteFile.exists()) {
@@ -366,6 +387,11 @@ public class Sync {
 					// Copy note file and meta file
 					FileUtils.copyFile(sourceNoteFile, destNoteFile);
 
+					// Mark sync timestamp
+					// mod time should be same for both files, copyFile preserves it
+					new Note(sourceNoteFile).getMeta().setSyncedTime(sourceNoteFile.lastModified());
+					new Note(destNoteFile).getMeta().setSyncedTime(destNoteFile.lastModified());
+
 					if (destMeta.exists()) {
 						File previouslyRetainedMeta = new File(retainedFolder.getAbsolutePath() + File.separator + destMeta.getName());
 						if (previouslyRetainedMeta.exists()) {
@@ -374,22 +400,51 @@ public class Sync {
 						FileUtils.moveFileToDirectory(destMeta, retainedFolder, true);
 					}
 
-					FileUtils.copyFile(sourceMeta, destMeta, true);
+					if (sourceMeta.exists()) {
+						FileUtils.copyFile(sourceMeta, destMeta, true);
+					}
 
 					// Copy all attachments over. If destination attachments exist,
 					// folders are combined, priority given to source.
 					if (sourceAttachments.exists()) {
 						FileUtils.copyDirectoryToDirectory(sourceAttachments, destAttachments);
 					}
-					r.numCopied++;
+
+					if (action == actions.updateVaultToDropbox) {
+						r.numCopiedToDropbox++;
+					}
+
+					if (action == actions.updateDropboxToVault) {
+						r.numCopiedToVault++;
+					}
 					writeCopyLog(sourceNoteFile.getAbsolutePath(), destNoteFile.getAbsolutePath());
 
 					if (action == actions.updateDropboxToVault) {
 						new VaultEvent(VaultEvent.Kind.notebookRefreshed, Note.findContainingNotebook(destNoteFile)).post();
 					}
+
+					if (action == actions.updateDropboxToVault) {
+						Note updatedNote = new Note(destNoteFile);
+						synced.addNote(updatedNote);
+					}
 					break;
 				default:
 					break;
+				}
+			}
+		}
+
+		if (conflict.count() > 0) {
+			conflict.setName("Conflict (" + conflict.count() + ")");
+			ElephantWindow.getActiveWindow().showNotebook(conflict);
+
+		} else {
+			if (synced.count() > 0) {
+				synced.setName("Updated (" + r.numCopiedToVault + ")");
+				ElephantWindow.getActiveWindow().showNotebook(synced);
+			} else {
+				if (ElephantWindow.getActiveWindow().isShowingSearchResults()) {
+					ElephantWindow.getActiveWindow().showNotebook(Vault.getInstance().getDefaultNotebook());
 				}
 			}
 		}

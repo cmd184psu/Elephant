@@ -52,8 +52,12 @@ public class Note implements Comparable<Note> {
 		public void title(String newTitle);
 
 		public long created();
+		
+		public long synced();
 
 		public void setCreatedTime();
+
+		public void setSyncedTime(long lastModified);
 
 		public int getAttachmentPosition(File attachment);
 
@@ -66,6 +70,7 @@ public class Note implements Comparable<Note> {
 		boolean getAttachmentPreview(File attachment);
 
 		public void setAttachmentPreview(File attachment, boolean b);
+
 	}
 
 	public class AttachmentInfo implements Comparable<AttachmentInfo> {
@@ -378,6 +383,15 @@ public class Note implements Comparable<Note> {
 		}
 
 		@Override
+		public long synced() {
+			try {
+				return Long.valueOf(map.get("synced"));
+			} catch (NumberFormatException e) {
+				return -1;
+			}
+		}
+
+		@Override
 		public void title(String newTitle) {
 			setMeta("title", newTitle);
 			reload();
@@ -386,6 +400,12 @@ public class Note implements Comparable<Note> {
 		@Override
 		public void setCreatedTime() {
 			setMeta("created", String.valueOf(new Date().getTime()));
+			reload();
+		}
+
+		@Override
+		public void setSyncedTime(long ts) {
+			setMeta("synced", String.valueOf(ts));
 			reload();
 		}
 

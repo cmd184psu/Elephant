@@ -57,7 +57,6 @@ public class SaveChanges {
 			File noteFileBeforeRename = currentNote.file();
 			File metaFileBeforeRename = currentNote.meta();
 			File renamedFile = null;
-			boolean didChangeFormatOnRename = false;
 
 			try {
 				// Title
@@ -76,14 +75,12 @@ public class SaveChanges {
 					if ((editor.isRichText && "txt".equals(ext)) || (!editor.isRichText && "rtf".equals(ext))) {
 						renamedFile = renameAccordingToFormat(currentNote, editor, editedTitle);
 						changed = true;
-						didChangeFormatOnRename = true;
 					}
 
 					// markdown -> make plain text
 					if (!editor.isMarkdown && "md".equals(ext)) {
 						renamedFile = renameAccordingToFormat(currentNote, editor, editedTitle);
 						changed = true;
-						didChangeFormatOnRename = true;
 					}
 				}
 
@@ -194,9 +191,12 @@ public class SaveChanges {
 					}
 				}
 
-				if (renamedFile != null && didChangeFormatOnRename) {
+				if (renamedFile != null) {
 					if (Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
 						Sync.onNoteRename(noteFileBeforeRename, metaFileBeforeRename, renamedFile);
+						// XXX If format was changed, say txt -> rtf, this leaves .rtf
+						// which is in txt format until next sync copies the actual rtf over.
+						// This isn't good.
 					}
 				}
 

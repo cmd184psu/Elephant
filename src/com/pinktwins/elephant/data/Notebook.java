@@ -171,7 +171,6 @@ public class Notebook implements Comparable<Notebook> {
 									didDigest = true;
 								}
 							}
-
 						}
 					} catch (SecurityException e) {
 						LOG.severe("Fail: " + e);
