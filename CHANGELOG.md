@@ -1,5 +1,8 @@
 # Changelog
 
+##63
+- Added syncing selected notebooks with Elephant mobile
+
 ##62
 - Added Edit -> Search Current Note (CMD-F) to search only from current note. Use arrow keys up and down to browse matches within the note.
 
