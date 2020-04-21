@@ -1,5 +1,8 @@
 # Changelog
 
+##64
+- Enable/support search on mobile app
+
 ##63
 - Added syncing selected notebooks with Elephant mobile
 

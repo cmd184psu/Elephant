@@ -96,7 +96,7 @@ public class Sync {
 	public static boolean isVaultAtDropboxAppsElephant() {
 		String dbPath = getDropboxFolder();
 		String vaultPath = Vault.getInstance().getHome().getAbsolutePath();
-		return (dbPath + File.separator + "Apps" + File.separator + "Dropbox").equals(vaultPath);
+		return (dbPath + File.separator + "Apps" + File.separator + "Elephant").equals(vaultPath);
 	}
 
 	public static String getSettingsHelpText() {
@@ -463,7 +463,7 @@ public class Sync {
 		return r;
 	}
 
-	private static void exportSearchIndex() {
+	public static void exportSearchIndex() {
 		// Export custom search index for mobile app
 		MemorySearchIndex msi = new MemorySearchIndex();
 

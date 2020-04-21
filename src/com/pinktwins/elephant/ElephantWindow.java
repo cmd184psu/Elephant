@@ -234,8 +234,13 @@ public class ElephantWindow extends JFrame {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			if (!Elephant.settings.getBoolean(Settings.Keys.SYNC)) {
-				settingsAction.actionPerformed(e);
-				JOptionPane.showMessageDialog(null, "Sync is currently off.", "Sync", JOptionPane.PLAIN_MESSAGE);
+				if (Sync.isVaultAtDropboxAppsElephant()) {
+					Sync.exportSearchIndex();
+					showToast("Search index exported.");
+				} else {
+					settingsAction.actionPerformed(e);
+					JOptionPane.showMessageDialog(null, "Sync is currently off.", "Sync", JOptionPane.PLAIN_MESSAGE);
+				}
 				return;
 			}
 			try {
