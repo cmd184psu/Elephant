@@ -338,5 +338,4 @@ public class LuceneSearchIndex implements SearchIndexInterface {
 
 		return found;
 	}
-
 }

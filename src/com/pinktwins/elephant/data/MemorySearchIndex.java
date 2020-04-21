@@ -112,4 +112,8 @@ public class MemorySearchIndex implements SearchIndexInterface {
 	@Override
 	public void commit() {
 	}
+	
+	public Map<String, Set<Note>> getWordMap() {
+		return wordMap;
+	}
 }

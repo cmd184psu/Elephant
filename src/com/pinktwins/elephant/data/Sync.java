@@ -4,25 +4,34 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.security.MessageDigest;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.pinktwins.elephant.Elephant;
 import com.pinktwins.elephant.ElephantWindow;
+import com.pinktwins.elephant.data.Note.Meta;
 import com.pinktwins.elephant.eventbus.NotebookEvent;
 import com.pinktwins.elephant.eventbus.VaultEvent;
 import com.pinktwins.elephant.util.DropboxContentHasher;
+import com.pinktwins.elephant.util.Factory;
 import com.pinktwins.elephant.util.IOUtil;
 
 public class Sync {
@@ -449,7 +458,107 @@ public class Sync {
 			}
 		}
 
+		exportSearchIndex();
+
 		return r;
+	}
+
+	private static void exportSearchIndex() {
+		// Export custom search index for mobile app
+		MemorySearchIndex msi = new MemorySearchIndex();
+
+		Set<String> syncedNotebooks = Elephant.settings.getSyncSelection();
+		for (Notebook nb : Vault.getInstance().getNotebooks()) {
+			if (!nb.isTrash() && syncedNotebooks.contains(nb.name())) {
+				for (Note note : nb.notes) {
+
+					Meta meta = note.getMeta();
+					msi.digestText(note, meta.title());
+					msi.digestText(note, "title:" + meta.title());
+
+					String contents = note.contentsIncludingRawHtml();
+					if (contents.startsWith("{\\rtf")) {
+						contents = Note.plainTextContents(contents);
+					}
+					msi.digestText(note, contents);
+
+					List<String> tagIds = meta.tags();
+					if (!tagIds.isEmpty()) {
+						List<String> tagNames = Vault.getInstance().resolveTagIds(tagIds);
+						for (String s : tagNames) {
+							msi.digestText(note, s + " tag:" + s + " t:" + s + " #" + s);
+						}
+					}
+
+					msi.digestText(note, "notebook:" + nb.name() + " nb:" + nb.name() + " @" + nb.name());
+					msi.digestDate(note, meta.created());
+					if (meta.created() < note.lastModified())
+						msi.digestDate(note, note.lastModified());
+				}
+			}
+		}
+
+		// Export as:
+		File outFile = new File(Sync.getDropboxFolder() + File.separator + "Apps" + File.separator + "Elephant" + File.separator + ".searchIndex.gz");
+
+		Map<String, Set<Note>> wordMap = msi.getWordMap();
+		synchronized (wordMap) {
+			Set<String> keys = wordMap.keySet();
+			Set<Note> notesUnique = Factory.newHashSet();
+
+			for (String s : keys) {
+				for (Note n : wordMap.get(s)) {
+					notesUnique.add(n);
+				}
+			}
+
+			Map<String, Integer> noteTable = Factory.newHashMap();
+			JSONArray notesListed = new JSONArray();
+			int count = 0;
+			for (Note n : notesUnique) {
+				String path = pathWithoutVault(n.file().getAbsolutePath());
+				if (!noteTable.containsKey(path)) {
+					noteTable.put(path, count);
+					notesListed.put(path);
+					count++;
+				}
+			}
+
+			try {
+				JSONObject words = new JSONObject();
+				for (String s : wordMap.keySet()) {
+					JSONArray notes = new JSONArray();
+					for (Note n : wordMap.get(s)) {
+						notes.put(noteTable.get(pathWithoutVault(n.file().getAbsolutePath())));
+					}
+					words.put(s, notes);
+				}
+
+				JSONObject exportObject = new JSONObject();
+				exportObject.put("words", words);
+				exportObject.put("notes", notesListed);
+				String json = exportObject.toString();
+
+				BufferedWriter writer = null;
+				try {
+					GZIPOutputStream zip = new GZIPOutputStream(new FileOutputStream(outFile));
+					writer = new BufferedWriter(new OutputStreamWriter(zip, "UTF-8"));
+					writer.append(json);
+				} finally {
+					if (writer != null) {
+						writer.close();
+					}
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private static String pathWithoutVault(String path) {
+		return path.replace(Vault.getInstance().getHome().getAbsolutePath(), "");
 	}
 
 	private static File metaFromFile(File home, File note) {
