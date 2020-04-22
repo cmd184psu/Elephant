@@ -99,7 +99,20 @@ public class NoteAttachments {
 		} else {
 			FileAttachment aa = new FileAttachment(f, note, editor.editorWidthScaler, editor.editorController);
 
-			notePane.setCaretPosition(position);
+			int len = notePane.getText().length();
+			if (position < 0) {
+				position = 0;
+			}
+			if (position > len) {
+				position = len;
+			}
+
+			try {
+				notePane.setCaretPosition(position);
+			} catch (IllegalArgumentException e) {
+				LOG.info("Note " + note.file().getAbsolutePath() + " attachment " + f.getName() + " position in meta is invalid.");
+			}
+
 			notePane.insertComponent(aa);
 
 			attachments.put(aa, f);
