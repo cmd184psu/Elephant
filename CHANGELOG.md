@@ -1,5 +1,9 @@
 # Changelog
 
+##65:
+Sync: avoid unneccessary .meta file when setting sync timestamp
+Fix: dont fail loading note if attachment position is invalid
+
 ##64
 - Enable/support search on mobile app
 
