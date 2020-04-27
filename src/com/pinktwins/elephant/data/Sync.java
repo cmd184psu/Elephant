@@ -373,12 +373,14 @@ public class Sync {
 				case updateVaultToDropbox:
 					// Check synced timestamps to avoid conflicts when both notes were modified after last sync.
 					if (sourceNoteFile.exists() && destNoteFile.exists()) {
-						Note.Meta destNoteMeta = new Note(destNoteFile).getMeta();
-						long destSynced = destNoteMeta.synced();
-
-						if (destSynced > 0 && destSynced != destNoteFile.lastModified()) {
+						// Sync time is identical on both sides, since only desktop sets it.
+						// Can always get it from Vault .meta:
+						Note vaultNote = new Note(vaultFile);
+						long syncTime = vaultNote.getMeta().synced();
+						
+						if (syncTime > 0 && syncTime != destNoteFile.lastModified()) {
 							LOG.info("Note: " + sourceNoteFile.getAbsolutePath() + " was modified on both sides, skipping copy.");
-							conflict.addNote(new Note(vaultFile));
+							conflict.addNote(vaultNote);
 							break;
 						}
 					}
@@ -396,10 +398,9 @@ public class Sync {
 					// Copy note file and meta file
 					FileUtils.copyFile(sourceNoteFile, destNoteFile);
 
-					// Mark sync timestamp
-					// mod time should be same for both files, copyFile preserves it
-					new Note(sourceNoteFile).getMeta().setSyncedTime(sourceNoteFile.lastModified());
-					new Note(destNoteFile).getMeta().setSyncedTime(destNoteFile.lastModified());
+					// Mark source lastModified() as sync time
+					// Only set sync time to source meta, it's copied over
+					setSyncTime(sourceMeta, sourceNoteFile.lastModified());
 
 					if (destMeta.exists()) {
 						File previouslyRetainedMeta = new File(retainedFolder.getAbsolutePath() + File.separator + destMeta.getName());
@@ -461,6 +462,23 @@ public class Sync {
 		exportSearchIndex();
 
 		return r;
+	}
+
+	private static void setSyncTime(File metaFile, long ts) {
+		// skip Note class for this one, since metaFile can be under Vault or dbHome.
+		try {
+			String json = new String(IOUtil.readFile(metaFile), IOUtil.getCharset());
+			if (json == null || json.isEmpty()) {
+				json = "{}";
+			}
+			JSONObject o = new JSONObject(json);
+			o.put("synced", String.valueOf(ts));
+			IOUtil.writeFile(metaFile, o.toString(4));
+		} catch (JSONException e) {
+			LOG.severe("Fail: " + e);
+		} catch (IOException e) {
+			LOG.severe("Fail: " + e);
+		}
 	}
 
 	public static void exportSearchIndex() {
